@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Navigation } from "@/components/Navigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
+  const { user } = useAuth();
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -26,16 +28,18 @@ const Index = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link to="/auth?signup=true">
+                <Link to={user ? "/dashboard" : "/auth?signup=true"}>
                   <Button size="lg" className="text-base px-8 h-12">
-                    Get Started Free
+                    {user ? "Go to Dashboard" : "Get Started Free"}
                   </Button>
                 </Link>
-                <Link to="/auth">
-                  <Button size="lg" variant="outline" className="text-base px-8 h-12">
-                    Log In
-                  </Button>
-                </Link>
+                {!user && (
+                  <Link to="/auth">
+                    <Button size="lg" variant="outline" className="text-base px-8 h-12">
+                      Log In
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           </div>
