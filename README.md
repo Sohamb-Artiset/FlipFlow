@@ -1,73 +1,71 @@
-# Welcome to your Lovable project
+### **Product Requirements Document: FlipFlow SaaS Platform**
 
-## Project info
+**Version:** 1.0
+**Date:** October 11, 2025
+**Author:** Gemini AI
 
-**URL**: https://lovable.dev/projects/27506047-bb54-4a08-863b-c03966151c4a
+### 1. Introduction & Objective
 
-## How can I edit this code?
+FlipFlow is a Software-as-a-Service (SaaS) platform that enables users to convert static PDF documents into interactive, web-based digital flipbooks. The objective is to provide an easy-to-use tool for marketers, content creators, and businesses to present their documents in an engaging, mobile-friendly format with realistic page-turning animations. The platform will offer features for customization, sharing, and basic analytics, positioning itself as a modern alternative to existing solutions like Heyzine, FlipHTML5, and Flipsnack.
 
-There are several ways of editing your application.
+### 2. Target Audience
 
-**Use Lovable**
+* **Digital Marketers:** Creating interactive brochures, catalogs, and reports.
+* **Small to Medium Businesses (SMBs):** Presenting portfolios, menus, and corporate documents.
+* **Educators & Students:** Sharing presentations, research papers, and assignments in an engaging format.
+* **Content Creators & Publishers:** Distributing digital magazines, e-books, and comics.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/27506047-bb54-4a08-863b-c03966151c4a) and start prompting.
+### 3. Success Metrics
 
-Changes made via Lovable will be committed automatically to this repo.
+* **User Acquisition:** Achieve 1,000 monthly active users (MAUs) within 6 months of launch.
+* **Engagement:** 5,000 flipbooks created in the first 6 months.
+* **User Satisfaction:** Achieve a Net Promoter Score (NPS) of 40 or higher.
+* **Retention:** Achieve a 30-day user retention rate of 20%.
 
-**Use your preferred IDE**
+### 4. Features & User Stories
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+#### **MVP 1.0 Feature Set**
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+**4.1. Core Functionality: PDF to Flipbook Conversion**
+* **User Story:** As a new user, I want to sign up for an account and log in easily so I can manage my projects.
+* **User Story:** As a logged-in user, I want to upload a PDF file from my device to the platform.
+* **User Story:** As a user, I want the platform to automatically process my PDF and convert it into a flipbook with a default layout.
+* **User Story:** As a user, I want to see all my created flipbooks in a central dashboard.
 
-Follow these steps:
+**4.2. Flipbook Viewer & Interaction**
+* **User Story:** As a reader, I want to experience a realistic and smooth page-flip animation when I turn pages.
+* **User Story:** As a reader, I want to be able to zoom in and out of the flipbook content to read text clearly.
+* **User Story:** As a reader, I want to use a navigation bar to jump to a specific page, or to the first/last page.
+* **User Story:** As a user, I want my flipbook to be responsive and viewable on desktop, tablet, and mobile devices.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+**4.3. Customization & Branding**
+* **User Story:** As a user, I want to add my own company logo to the flipbook viewer to maintain my brand identity.
+* **User Story:** As a user, I want to change the background color or image of the flipbook viewer to match my brand's aesthetic.
+* **User Story:** As a user, I want to embed interactive elements like YouTube/Vimeo videos and audio clips into the pages of my flipbook.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+**4.4. Sharing & Embedding**
+* **User Story:** As a user, I want a direct, public URL to share my flipbook easily via email or social media.
+* **User Story:** As a user, I want to generate an `iframe` embed code to display the flipbook directly on my website or blog.
+* **User Story:** As a user, I want the option to download my flipbook as a self-contained HTML/JS package for offline viewing.
 
-# Step 3: Install the necessary dependencies.
-npm i
+**4.5. Analytics**
+* **User Story:** As a user, I want to see basic analytics for each flipbook, such as the total number of views and reads, directly from my dashboard.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+### 5. Technical Stack
 
-**Edit a file directly in GitHub**
+* **Frontend:** React.js
+* **Core Flipbook Engine:** `react-pageflip` (built on StPageFlip)
+* **UI/UX Animations:** Framer Motion (for smooth transitions and interactive elements)
+* **PDF Processing (Client-side):** `pdfjs-dist` (for rendering PDFs in the browser)
+* **Backend & BaaS:** Supabase
+    * **Authentication:** Manages user accounts and sessions.
+    * **Database:** Stores user data and flipbook configurations.
+    * **Storage:** Hosts uploaded PDF files and generated assets.
+* **Custom Server-side Logic:** Node.js with Express.js (for handling offline downloads and advanced server tasks)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### 6. Design & UX Requirements
 
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/27506047-bb54-4a08-863b-c03966151c4a) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+* The user interface must be clean, modern, and intuitive.
+* The PDF upload process should be a simple drag-and-drop or file selection interface.
+* All user interactions, such as opening modals or navigating the dashboard, should be smooth and animated using Framer Motion.
+* The flipbook customization panel should provide a real-time preview of the changes.
