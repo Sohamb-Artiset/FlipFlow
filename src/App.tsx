@@ -10,6 +10,8 @@ import Dashboard from "./pages/Dashboard";
 import Product from "./pages/Product";
 import Pricing from "./pages/Pricing";
 import Resources from "./pages/Resources";
+import FlipbookView from "./pages/FlipbookView";
+import FlipbookEdit from "./pages/FlipbookEdit";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +30,8 @@ const App = () => (
             <Route path="/product" element={<Product />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/resources" element={<Resources />} />
+            <Route path="/flipbook/:id" element={<FlipbookView />} />
+            <Route path="/flipbook/:id/edit" element={<FlipbookEdit />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
