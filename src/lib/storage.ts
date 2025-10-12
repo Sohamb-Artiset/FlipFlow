@@ -16,6 +16,8 @@ export const uploadPDF = async (
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${flipbookId}.${fileExt}`;
     
+    console.log('Uploading PDF:', { fileName, userId, flipbookId, fileSize: file.size });
+    
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKETS.FLIPBOOK_PDFS)
       .upload(fileName, file, {
@@ -24,8 +26,13 @@ export const uploadPDF = async (
       });
 
     if (error) {
-      console.error('Error uploading PDF:', error);
-      return { data: null, error: error.message };
+      console.error('Storage upload error:', error);
+      return { data: null, error: `Storage error: ${error.message}` };
+    }
+
+    if (!data) {
+      console.error('No data returned from storage upload');
+      return { data: null, error: 'No data returned from storage' };
     }
 
     // Get public URL for PDF access
@@ -33,10 +40,11 @@ export const uploadPDF = async (
       .from(STORAGE_BUCKETS.FLIPBOOK_PDFS)
       .getPublicUrl(fileName);
 
+    console.log('PDF uploaded successfully:', urlData.publicUrl);
     return { data: urlData.publicUrl, error: null };
   } catch (error) {
     console.error('Error uploading PDF:', error);
-    return { data: null, error: 'Failed to upload PDF' };
+    return { data: null, error: `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}` };
   }
 };
 

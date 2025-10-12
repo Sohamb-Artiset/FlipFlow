@@ -57,13 +57,30 @@ export const FlipbookUpload = ({ onUploadComplete }: FlipbookUploadProps) => {
   });
 
   const handleUpload = async () => {
-    if (!selectedFile || !user) return;
+    if (!selectedFile || !user) {
+      setError('Please select a file and ensure you are logged in');
+      return;
+    }
 
     setIsUploading(true);
     setUploadProgress(0);
     setError(null);
 
     try {
+      // Ensure user profile exists
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: user.email || '',
+          full_name: user.user_metadata?.full_name || null,
+        });
+
+      if (profileError) {
+        console.error('Profile upsert error:', profileError);
+        // Don't throw here, continue with upload
+      }
+
       // Generate a unique ID for the flipbook
       const flipbookId = crypto.randomUUID();
 
@@ -76,7 +93,8 @@ export const FlipbookUpload = ({ onUploadComplete }: FlipbookUploadProps) => {
       );
 
       if (uploadError || !pdfUrl) {
-        throw new Error(uploadError || 'Failed to upload PDF');
+        console.error('Storage upload error:', uploadError);
+        throw new Error(`Storage upload failed: ${uploadError || 'Unknown error'}`);
       }
 
       setUploadProgress(50);
@@ -94,7 +112,8 @@ export const FlipbookUpload = ({ onUploadComplete }: FlipbookUploadProps) => {
         });
 
       if (dbError) {
-        throw new Error('Failed to save flipbook');
+        console.error('Database insert error:', dbError);
+        throw new Error(`Database save failed: ${dbError.message || 'Unknown error'}`);
       }
 
       setUploadProgress(100);
@@ -117,6 +136,13 @@ export const FlipbookUpload = ({ onUploadComplete }: FlipbookUploadProps) => {
     } catch (error: any) {
       console.error('Upload error:', error);
       setError(error.message || 'Failed to upload flipbook');
+      
+      // Show detailed error to user
+      toast({
+        title: 'Upload Failed',
+        description: error.message || 'Failed to upload flipbook',
+        variant: 'destructive',
+      });
     } finally {
       setIsUploading(false);
       setUploadProgress(0);

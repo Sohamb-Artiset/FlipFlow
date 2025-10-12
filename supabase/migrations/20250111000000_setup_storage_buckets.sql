@@ -1,4 +1,4 @@
--- Create storage buckets for flipbooks
+-- Create storage buckets for flipbooks (with conflict handling)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES 
   (
@@ -14,13 +14,16 @@ VALUES
     true,
     5242880, -- 5MB limit for logos and images
     ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
-  );
+  )
+ON CONFLICT (id) DO NOTHING;
 
 -- RLS policies for flipbook-pdfs bucket (public read)
+DROP POLICY IF EXISTS "Anyone can view PDFs" ON storage.objects;
 CREATE POLICY "Anyone can view PDFs"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'flipbook-pdfs');
 
+DROP POLICY IF EXISTS "Users can upload their own PDFs" ON storage.objects;
 CREATE POLICY "Users can upload their own PDFs"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -28,6 +31,7 @@ CREATE POLICY "Users can upload their own PDFs"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
+DROP POLICY IF EXISTS "Users can update their own PDFs" ON storage.objects;
 CREATE POLICY "Users can update their own PDFs"
   ON storage.objects FOR UPDATE
   USING (
@@ -35,6 +39,7 @@ CREATE POLICY "Users can update their own PDFs"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
+DROP POLICY IF EXISTS "Users can delete their own PDFs" ON storage.objects;
 CREATE POLICY "Users can delete their own PDFs"
   ON storage.objects FOR DELETE
   USING (
@@ -43,10 +48,12 @@ CREATE POLICY "Users can delete their own PDFs"
   );
 
 -- RLS policies for flipbook-assets bucket (public read, authenticated write)
+DROP POLICY IF EXISTS "Anyone can view assets" ON storage.objects;
 CREATE POLICY "Anyone can view assets"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'flipbook-assets');
 
+DROP POLICY IF EXISTS "Users can upload their own assets" ON storage.objects;
 CREATE POLICY "Users can upload their own assets"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -54,6 +61,7 @@ CREATE POLICY "Users can upload their own assets"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
+DROP POLICY IF EXISTS "Users can update their own assets" ON storage.objects;
 CREATE POLICY "Users can update their own assets"
   ON storage.objects FOR UPDATE
   USING (
@@ -61,6 +69,7 @@ CREATE POLICY "Users can update their own assets"
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 
+DROP POLICY IF EXISTS "Users can delete their own assets" ON storage.objects;
 CREATE POLICY "Users can delete their own assets"
   ON storage.objects FOR DELETE
   USING (

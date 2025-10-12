@@ -19,7 +19,7 @@ export const FlipbookViewer = ({
   logoUrl,
   className = ''
 }: FlipbookViewerProps) => {
-  const flipBookRef = useRef<HTMLFlipBook>(null);
+  const flipBookRef = useRef<typeof HTMLFlipBook>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -50,13 +50,13 @@ export const FlipbookViewer = ({
 
   const goToPrevPage = () => {
     if (flipBookRef.current && currentPage > 1) {
-      flipBookRef.current.pageFlip().flipPrev();
+      (flipBookRef.current as any).pageFlip().flipPrev();
     }
   };
 
   const goToNextPage = () => {
     if (flipBookRef.current && currentPage < totalPages) {
-      flipBookRef.current.pageFlip().flipNext();
+      (flipBookRef.current as any).pageFlip().flipNext();
     }
   };
 
@@ -215,9 +215,20 @@ export const FlipbookViewer = ({
           maxWidth={Math.max(pdfDimensions.width * 1.5, 600)}
           minHeight={Math.min(pdfDimensions.height * 0.5, 300)}
           maxHeight={Math.max(pdfDimensions.height * 1.5, 900)}
+          startPage={0}
+          drawShadow={true}
+          flippingTime={1000}
+          usePortrait={true}
+          startZIndex={0}
+          autoSize={true}
           maxShadowOpacity={0.5}
           showCover={false}
           mobileScrollSupport={true}
+          clickEventForward={true}
+          useMouseEvents={true}
+          swipeDistance={30}
+          showPageCorners={true}
+          disableFlipByClick={false}
           onFlip={handleFlip}
           className="flipbook"
           style={{
@@ -242,7 +253,7 @@ export const FlipbookViewer = ({
                 size="sm"
                 onClick={() => {
                   if (flipBookRef.current) {
-                    flipBookRef.current.pageFlip().flip(pageNum - 1);
+                    (flipBookRef.current as any).pageFlip().flip(pageNum - 1);
                   }
                 }}
                 className="w-8 h-8 p-0"
@@ -259,7 +270,7 @@ export const FlipbookViewer = ({
                 size="sm"
                 onClick={() => {
                   if (flipBookRef.current) {
-                    flipBookRef.current.pageFlip().flip(totalPages - 1);
+                    (flipBookRef.current as any).pageFlip().flip(totalPages - 1);
                   }
                 }}
                 className="w-8 h-8 p-0"

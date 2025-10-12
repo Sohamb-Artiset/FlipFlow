@@ -2,6 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+// Use remote Supabase for development (local storage has issues)
 const SUPABASE_URL = "https://wpqetuxkjsmzxzuvybes.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwcWV0dXhranNtenh6dXZ5YmVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwNjkwMDUsImV4cCI6MjA3NTY0NTAwNX0.8gsWGcV1D38fPFmmJAIINGSbVuF_H0Ukl43TuOXAkIU";
 
