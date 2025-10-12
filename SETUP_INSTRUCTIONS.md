@@ -46,7 +46,24 @@ You need to manually create these storage buckets in your Supabase dashboard:
 ### 2. Storage Policies
 Run the SQL from `supabase/migrations/20250111000000_setup_storage_buckets.sql` in your Supabase SQL editor to set up the storage policies.
 
-### 3. Dependencies Installed
+### 3. Supabase Type Generation
+To ensure your frontend types always match your database schema, use the Supabase CLI to generate types automatically:
+
+1. **Install Supabase CLI** (if not already installed):
+   ```bash
+   npm install -g supabase
+   ```
+
+2. **Generate types from your database schema**:
+   ```bash
+   supabase gen types typescript --project-id <your-project-id> > src/integrations/supabase/types.ts
+   ```
+
+3. **Re-run this command** whenever you make changes to your database schema to keep types in sync.
+
+**Note**: This replaces the manual `src/integrations/supabase/types.ts` file with auto-generated types directly from your database, preventing type mismatches and maintenance errors.
+
+### 4. Dependencies Installed
 The following packages have been installed:
 - `pdfjs-dist` - PDF rendering
 - `react-pageflip` - Flipbook engine

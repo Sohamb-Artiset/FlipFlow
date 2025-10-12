@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { FlipbookViewer } from '@/components/FlipbookViewer';
 import { PDFProcessor } from '@/lib/pdfProcessor';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { Share2, Eye, Calendar } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 

@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, FileText, X, Check } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { validatePDFFile, formatFileSize } from '@/lib/pdfProcessor';
 import { uploadPDF } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
