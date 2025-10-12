@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Upload, X, Check } from 'lucide-react';
+import { Upload, X, Check, ArrowRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { uploadAsset } from '@/lib/storage';
 import { Tables } from '@/integrations/supabase/types';
@@ -33,6 +33,7 @@ export const FlipbookCustomization = ({
   const [logoUrl, setLogoUrl] = useState(flipbook.logo_url || '');
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSaveNotification, setShowSaveNotification] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -40,21 +41,25 @@ export const FlipbookCustomization = ({
   const handleTitleChange = (value: string) => {
     setTitle(value);
     onUpdate({ title: value });
+    setShowSaveNotification(false);
   };
 
   const handleDescriptionChange = (value: string) => {
     setDescription(value);
     onUpdate({ description: value || null });
+    setShowSaveNotification(false);
   };
 
   const handleBackgroundColorChange = (color: string) => {
     setBackgroundColor(color);
     onUpdate({ background_color: color });
+    setShowSaveNotification(false);
   };
 
   const handlePublicToggle = (checked: boolean) => {
     setIsPublic(checked);
     onUpdate({ is_public: checked });
+    setShowSaveNotification(false);
   };
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,6 +81,7 @@ export const FlipbookCustomization = ({
 
     setIsUploadingLogo(true);
     setError(null);
+    setShowSaveNotification(false);
 
     try {
       // Upload logo to storage
@@ -112,6 +118,7 @@ export const FlipbookCustomization = ({
   const removeLogo = () => {
     setLogoUrl('');
     onUpdate({ logo_url: null });
+    setShowSaveNotification(false);
   };
 
   const handleSave = async () => {
@@ -122,21 +129,24 @@ export const FlipbookCustomization = ({
 
     try {
       setError(null);
-      await onSave({
+      const updates = {
         title: title.trim(),
         description: description.trim() || null,
         background_color: backgroundColor,
         is_public: isPublic,
         logo_url: logoUrl || null,
-      });
+      };
+      await onSave(updates);
 
       toast({
         title: 'Success',
         description: 'Flipbook updated successfully',
       });
+      setShowSaveNotification(true);
     } catch (err: any) {
       console.error('Error saving flipbook:', err);
       setError(err.message || 'Failed to save changes');
+      setShowSaveNotification(false);
     }
   };
 
@@ -294,8 +304,19 @@ export const FlipbookCustomization = ({
         </CardContent>
       </Card>
 
-      {/* Save Button */}
-      <div className="flex justify-end">
+      {/* Save Button and Notification */}
+      <div className="flex items-center justify-end space-x-4">
+        {showSaveNotification && (
+          <div className="flex items-center space-x-4">
+            <p className="text-sm text-green-600">Saved successfully!</p>
+            <a href={`/flipbook/${flipbook.id}`} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="sm">
+                Go to Flipbook
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </a>
+          </div>
+        )}
         <Button onClick={handleSave} disabled={isSaving || !title.trim()}>
           {isSaving ? (
             <>

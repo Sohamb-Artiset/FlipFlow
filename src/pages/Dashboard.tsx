@@ -193,7 +193,7 @@ export default function Dashboard() {
 
                     {/* Actions */}
                     <div className="flex space-x-2">
-                      <Link to={`/flipbook/${flipbook.id}`} className="flex-1">
+                      <Link to={`/flipbook/${flipbook.id}`} className="flex-1" target="_blank" rel="noopener noreferrer">
                         <Button variant="outline" size="sm" className="w-full">
                           <Eye className="w-4 h-4 mr-2" />
                           View
