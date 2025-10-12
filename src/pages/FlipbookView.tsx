@@ -69,19 +69,19 @@ export default function FlipbookView() {
       // Get user's IP and user agent
       const userAgent = navigator.userAgent;
       
+      // Insert view record
       await supabase
         .from('flipbook_views')
         .insert({
           flipbook_id: flipbookId,
-          ip_address: null, // Will be handled by Supabase RLS
+          ip_address: null,
           user_agent: userAgent,
         });
 
-      // Increment view count
-      await supabase
-        .from('flipbooks')
-        .update({ view_count: (flipbook?.view_count || 0) + 1 })
-        .eq('id', flipbookId);
+      // Use the database function to safely increment view count
+      await supabase.rpc('increment_view_count', {
+        flipbook_id: flipbookId
+      });
 
     } catch (error) {
       console.error('Error tracking view:', error);

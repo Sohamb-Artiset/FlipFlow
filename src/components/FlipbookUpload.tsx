@@ -67,7 +67,7 @@ export const FlipbookUpload = ({ onUploadComplete }: FlipbookUploadProps) => {
     setError(null);
 
     try {
-      // Ensure user profile exists
+      // Ensure user profile exists - critical for RLS policies
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -78,7 +78,7 @@ export const FlipbookUpload = ({ onUploadComplete }: FlipbookUploadProps) => {
 
       if (profileError) {
         console.error('Profile upsert error:', profileError);
-        // Don't throw here, continue with upload
+        throw new Error(`Profile setup failed: ${profileError.message}. Please try logging out and back in.`);
       }
 
       // Generate a unique ID for the flipbook
