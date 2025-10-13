@@ -242,6 +242,7 @@ export default function FlipbookView() {
             pdfDocument={pdfDocument}
             backgroundColor={flipbook.background_color || '#ffffff'}
             logoUrl={flipbook.logo_url || undefined}
+            flipbook={flipbook}
           />
         )}
 

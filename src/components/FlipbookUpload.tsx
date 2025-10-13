@@ -109,6 +109,7 @@ export const FlipbookUpload = ({ onUploadComplete }: FlipbookUploadProps) => {
           description: description || null,
           pdf_url: pdfUrl,
           is_public: true,
+          show_covers: true,
         });
 
       if (dbError) {

@@ -1,7 +1,7 @@
 -- Add cover customization fields to flipbooks table
 -- This migration adds cover customization fields to the existing flipbooks table
 ALTER TABLE flipbooks 
-ADD COLUMN show_covers BOOLEAN DEFAULT false,
+ADD COLUMN show_covers BOOLEAN DEFAULT true,
 ADD COLUMN cover_overlay_enabled BOOLEAN DEFAULT true,
 ADD COLUMN cover_overlay_text TEXT,
 ADD COLUMN cover_overlay_color TEXT DEFAULT 'rgba(0, 0, 0, 0.5)',

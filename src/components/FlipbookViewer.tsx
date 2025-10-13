@@ -5,20 +5,25 @@ import { ZoomIn, ZoomOut, Maximize, Minimize, ChevronLeft, ChevronRight } from '
 import { motion } from 'framer-motion';
 import HTMLFlipBook from 'react-pageflip';
 import { PDFDocument } from '@/lib/pdfProcessor';
+import { PageCover, Page } from '@/components/PageComponents';
+import { Tables } from '@/integrations/supabase/types';
 
 interface FlipbookViewerProps {
   pdfDocument: PDFDocument;
   backgroundColor?: string;
   logoUrl?: string;
   className?: string;
+  flipbook?: Tables<'flipbooks'>;
 }
 
 export const FlipbookViewer = ({ 
   pdfDocument, 
   backgroundColor = '#ffffff',
   logoUrl,
-  className = ''
+  className = '',
+  flipbook
 }: FlipbookViewerProps) => {
+  const showCovers = flipbook?.show_covers ?? false;
   const flipBookRef = useRef<typeof HTMLFlipBook>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -87,38 +92,28 @@ export const FlipbookViewer = ({
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  const renderPage = (page: any) => {
-    const pageIndex = page - 1;
+  const renderPage = (pageIndex: number) => {
     const pageData = pdfDocument.pages[pageIndex];
     
     if (!pageData) return null;
 
-    return (
-      <div 
-        key={pageIndex}
-        className="flipbook-page"
-        style={{
-          backgroundColor,
-          backgroundImage: logoUrl ? `url(${logoUrl})` : undefined,
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'top right',
-          backgroundSize: '100px auto',
-          padding: '20px',
-        }}
-      >
-        <img
-          src={pageData.imageData}
-          alt={`Page ${page}`}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'contain',
-            display: 'block',
-          }}
-          draggable={false}
-        />
-      </div>
-    );
+    const showCovers = flipbook?.show_covers || false;
+    const isFirstPage = pageIndex === 0;
+    const isLastPage = pageIndex === totalPages - 1;
+    const shouldUseCover = showCovers && (isFirstPage || isLastPage);
+
+    const pageProps = {
+      pageData,
+      backgroundColor,
+      logoUrl,
+      pageNumber: pageIndex + 1,
+    };
+
+    if (shouldUseCover) {
+      return <PageCover key={pageIndex} {...pageProps} />;
+    } else {
+      return <Page key={pageIndex} {...pageProps} />;
+    }
   };
 
   if (isLoading) {
@@ -222,7 +217,7 @@ export const FlipbookViewer = ({
           startZIndex={0}
           autoSize={true}
           maxShadowOpacity={0.5}
-          showCover={false}
+          showCover={flipbook?.show_covers || false}
           mobileScrollSupport={true}
           clickEventForward={true}
           useMouseEvents={true}
@@ -235,7 +230,7 @@ export const FlipbookViewer = ({
             margin: '0 auto',
           }}
         >
-          {pdfDocument.pages.map((_, index) => renderPage(index + 1))}
+          {pdfDocument.pages.map((_, index) => renderPage(index))}
         </HTMLFlipBook>
       </motion.div>
 

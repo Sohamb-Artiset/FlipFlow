@@ -235,6 +235,7 @@ export default function FlipbookEdit() {
                     pdfDocument={pdfDocument}
                     backgroundColor={flipbook.background_color || '#ffffff'}
                     logoUrl={flipbook.logo_url || undefined}
+                    flipbook={flipbook}
                   />
                 </div>
               ) : (
@@ -270,6 +271,7 @@ export default function FlipbookEdit() {
                   pdfDocument={pdfDocument}
                   backgroundColor={flipbook.background_color || '#ffffff'}
                   logoUrl={flipbook.logo_url || undefined}
+                  flipbook={flipbook}
                 />
               ) : (
                 <div className="text-center py-8">
