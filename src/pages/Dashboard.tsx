@@ -15,7 +15,7 @@ import { Tables } from '@/integrations/supabase/types';
 type Flipbook = Tables<'flipbooks'>;
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [flipbooks, setFlipbooks] = useState<Flipbook[]>([]);
@@ -130,8 +130,54 @@ export default function Dashboard() {
               Create and manage your interactive flipbooks
             </p>
           </div>
-          <FlipbookUpload onUploadComplete={fetchFlipbooks} />
+          <FlipbookUpload onUploadComplete={fetchFlipbooks} flipbookCount={flipbooks.length} />
         </div>
+
+        {/* Plan Status Display */}
+        {profile && (
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div>
+                    <h3 className="font-semibold text-sm">Current Plan</h3>
+                    <p className="text-muted-foreground text-sm">
+                      {profile.plan === 'premium' ? 'Premium Plan' : 'Free Plan'}
+                    </p>
+                  </div>
+                  <div className="h-8 w-px bg-border" />
+                  <div>
+                    <h3 className="font-semibold text-sm">Flipbook Usage</h3>
+                    <p className="text-muted-foreground text-sm">
+                      {profile.plan === 'premium' 
+                        ? `${flipbooks.length} flipbooks (Unlimited)` 
+                        : `${flipbooks.length}/3 flipbooks used`
+                      }
+                    </p>
+                  </div>
+                </div>
+                {profile.plan === 'free' && flipbooks.length >= 2 && (
+                  <div className="text-right">
+                    {flipbooks.length === 2 ? (
+                      <Badge variant="secondary" className="text-amber-600">
+                        1 remaining
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive">
+                        Limit reached
+                      </Badge>
+                    )}
+                  </div>
+                )}
+                {profile.plan === 'premium' && (
+                  <Badge variant="default" className="bg-green-600">
+                    Premium
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Error State */}
         {error && (
@@ -157,7 +203,7 @@ export default function Dashboard() {
               <p className="text-muted-foreground mb-6">
                 Create your first interactive flipbook by uploading a PDF
               </p>
-              <FlipbookUpload onUploadComplete={fetchFlipbooks} />
+              <FlipbookUpload onUploadComplete={fetchFlipbooks} flipbookCount={flipbooks.length} />
             </CardContent>
           </Card>
         ) : (
