@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
 import { Navigation } from "@/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import RazorpayButton from "@/components/RazorpayButton";
 
 const Pricing = () => {
   const { user } = useAuth();
@@ -28,7 +29,7 @@ const Pricing = () => {
     },
     {
       name: "Pro",
-      price: "$19",
+      price: "₹1,499",
       period: "per month",
       description: "For professionals and small businesses",
       features: [
@@ -42,11 +43,12 @@ const Pricing = () => {
       ],
       cta: "Start Pro Trial",
       popular: true,
-      limitations: "7-day free trial"
+      limitations: "7-day free trial",
+      amount: 149900 // Amount in paise
     },
     {
       name: "Business",
-      price: "$49",
+      price: "₹3,999",
       period: "per month",
       description: "For teams and growing businesses",
       features: [
@@ -61,7 +63,8 @@ const Pricing = () => {
       ],
       cta: "Contact Sales",
       popular: false,
-      limitations: "Custom pricing available"
+      limitations: "Custom pricing available",
+      amount: 399900 // Amount in paise
     }
   ];
 
@@ -154,14 +157,23 @@ const Pricing = () => {
                     </ul>
                     
                     <div className="pt-4">
-                      <Link to={user ? "/dashboard" : "/auth?signup=true"}>
-                        <Button 
-                          className={`w-full ${plan.popular ? 'bg-primary hover:bg-primary/90' : ''}`}
+                      {plan.name === "Free" ? (
+                        <Link to={user ? "/dashboard" : "/auth?signup=true"}>
+                          <Button 
+                            className="w-full"
+                            variant="outline"
+                          >
+                            {plan.cta}
+                          </Button>
+                        </Link>
+                      ) : (
+                        <RazorpayButton
+                          amount={plan.amount || 0}
+                          planName={plan.name}
                           variant={plan.popular ? 'default' : 'outline'}
-                        >
-                          {plan.cta}
-                        </Button>
-                      </Link>
+                          className="w-full"
+                        />
+                      )}
                       <p className="text-xs text-muted-foreground text-center mt-2">
                         {plan.limitations}
                       </p>
