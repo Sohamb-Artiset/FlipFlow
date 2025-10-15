@@ -1,9 +1,69 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+import { toast } from 'sonner';
+import { InlineLoading } from "@/components/LoadingFeedback";
+import { Loader2, LogOut } from "lucide-react";
 
 export const Navigation = () => {
   const { user, signOut } = useAuth();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      await signOut();
+      
+      // Navigate to home page after successful sign out
+      navigate('/', { replace: true });
+      
+    } catch (error) {
+      console.error('Sign out failed:', error);
+      
+      // Enhanced error handling with retry functionality
+      if (error instanceof Error) {
+        const message = error.message.toLowerCase();
+        
+        if (message.includes('network') || message.includes('fetch')) {
+          toast.error('Network Error', {
+            description: 'Unable to sign out due to connection issues.',
+            action: {
+              label: 'Retry',
+              onClick: () => handleSignOut(),
+            },
+          });
+        } else if (message.includes('timeout')) {
+          toast.error('Request Timeout', {
+            description: 'Sign out request timed out. Please try again.',
+            action: {
+              label: 'Retry',
+              onClick: () => handleSignOut(),
+            },
+          });
+        } else {
+          toast.error('Sign Out Failed', {
+            description: 'An unexpected error occurred. Please try again.',
+            action: {
+              label: 'Retry',
+              onClick: () => handleSignOut(),
+            },
+          });
+        }
+      } else {
+        toast.error('Sign Out Failed', {
+          description: 'Unable to sign out. Please try again.',
+          action: {
+            label: 'Retry',
+            onClick: () => handleSignOut(),
+          },
+        });
+      }
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -46,8 +106,20 @@ export const Navigation = () => {
                     Dashboard
                   </Button>
                 </Link>
-                <Button variant="outline" size="sm" onClick={signOut}>
-                  Sign Out
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                >
+                  {isSigningOut ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Signing Out...
+                    </>
+                  ) : (
+                    'Sign Out'
+                  )}
                 </Button>
               </>
             ) : (

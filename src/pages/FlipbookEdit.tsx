@@ -7,6 +7,9 @@ import { FlipbookCustomization } from '@/components/FlipbookCustomization';
 import { FlipbookViewer } from '@/components/FlipbookViewer';
 import { PDFProcessor } from '@/lib/pdfProcessor';
 import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
+import { ErrorDisplay } from '@/components/ErrorDisplay';
+import { LoadingFeedback, OperationLoading } from '@/components/LoadingFeedback';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
@@ -127,10 +130,11 @@ export default function FlipbookEdit() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading flipbook...</p>
-        </div>
+        <LoadingFeedback 
+          type="card" 
+          message="Loading flipbook editor..." 
+          size="lg"
+        />
       </div>
     );
   }
@@ -138,17 +142,15 @@ export default function FlipbookEdit() {
   if (error) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-red-600">Error</CardTitle>
-            <CardDescription>{error}</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Button onClick={() => navigate('/dashboard')}>
-              Back to Dashboard
-            </Button>
-          </CardContent>
-        </Card>
+        <ErrorDisplay
+          error={new Error(error)}
+          variant="card"
+          title="Unable to Load Editor"
+          onRetry={() => fetchFlipbook()}
+          isRetrying={isLoading}
+          showDetails={false}
+          className="w-full max-w-md"
+        />
       </div>
     );
   }
@@ -224,9 +226,11 @@ export default function FlipbookEdit() {
 
               {isProcessing ? (
                 <Card>
-                  <CardContent className="p-8 text-center">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                    <p className="text-muted-foreground">Loading PDF preview...</p>
+                  <CardContent className="p-8">
+                    <OperationLoading 
+                      operation="download" 
+                      message="Loading PDF preview..." 
+                    />
                   </CardContent>
                 </Card>
               ) : pdfDocument ? (
@@ -262,9 +266,11 @@ export default function FlipbookEdit() {
             </CardHeader>
             <CardContent>
               {isProcessing ? (
-                <div className="text-center py-8">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                  <p className="text-muted-foreground">Loading PDF preview...</p>
+                <div className="py-8">
+                  <OperationLoading 
+                    operation="download" 
+                    message="Loading PDF preview..." 
+                  />
                 </div>
               ) : pdfDocument ? (
                 <FlipbookViewer

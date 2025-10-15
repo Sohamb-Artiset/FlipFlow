@@ -8,6 +8,9 @@ import { FlipbookViewer } from '@/components/FlipbookViewer';
 import { PDFProcessor } from '@/lib/pdfProcessor';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
+import { ErrorDisplay, ErrorEmptyState } from '@/components/ErrorDisplay';
+import { LoadingFeedback, OperationLoading } from '@/components/LoadingFeedback';
 import { Share2, Eye, Calendar } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 
@@ -117,15 +120,31 @@ export default function FlipbookView() {
     
     try {
       await navigator.clipboard.writeText(url);
-      toast({
-        title: 'Copied!',
-        description: 'Flipbook URL copied to clipboard',
+      toast.success('Link Copied!', {
+        description: 'Flipbook URL has been copied to your clipboard.',
       });
     } catch (error) {
-      // Fallback for browsers that don't support clipboard API
-      toast({
-        title: 'Share this flipbook',
+      // Enhanced fallback with retry option
+      toast.info('Share this flipbook', {
         description: url,
+        action: {
+          label: 'Copy',
+          onClick: () => {
+            const textArea = document.createElement('textarea');
+            textArea.value = url;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+              document.execCommand('copy');
+              toast.success('Copied!', { description: 'URL copied to clipboard.' });
+            } catch (err) {
+              toast.error('Copy Failed', { 
+                description: 'Please copy the URL manually from your browser address bar.' 
+              });
+            }
+            document.body.removeChild(textArea);
+          },
+        },
       });
     }
   };
@@ -141,10 +160,11 @@ export default function FlipbookView() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading flipbook...</p>
-        </div>
+        <LoadingFeedback 
+          type="card" 
+          message="Loading flipbook details..." 
+          size="lg"
+        />
       </div>
     );
   }
@@ -152,17 +172,15 @@ export default function FlipbookView() {
   if (error) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-red-600">Error</CardTitle>
-            <CardDescription>{error}</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Button onClick={() => window.history.back()}>
-              Go Back
-            </Button>
-          </CardContent>
-        </Card>
+        <ErrorDisplay
+          error={new Error(error)}
+          variant="card"
+          title="Unable to Load Flipbook"
+          onRetry={() => fetchFlipbook()}
+          isRetrying={isLoading}
+          showDetails={false}
+          className="w-full max-w-md"
+        />
       </div>
     );
   }
@@ -222,18 +240,31 @@ export default function FlipbookView() {
         {/* Processing */}
         {isProcessing && (
           <Card className="mb-8">
-            <CardContent className="p-8 text-center">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground">Processing PDF...</p>
+            <CardContent className="p-8">
+              <OperationLoading 
+                operation="download" 
+                message="Processing PDF for viewing..." 
+              />
             </CardContent>
           </Card>
         )}
 
         {/* Error State */}
         {error && (
-          <Alert variant="destructive" className="mb-8">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <ErrorDisplay
+            error={new Error(error)}
+            variant="alert"
+            onRetry={() => {
+              setError(null);
+              if (flipbook?.pdf_url) {
+                loadPDF();
+              } else {
+                fetchFlipbook();
+              }
+            }}
+            isRetrying={isLoading || isProcessing}
+            className="mb-8"
+          />
         )}
 
         {/* Flipbook Viewer */}

@@ -1,92 +1,71 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigation } from '@/components/Navigation';
 import { FlipbookUpload } from '@/components/FlipbookUpload';
+import { FlipbookCardSkeleton } from '@/components/FlipbookCardSkeleton';
+import { PlanStatusSkeleton } from '@/components/PlanStatusSkeleton';
+import { ErrorDisplay, ErrorEmptyState } from '@/components/ErrorDisplay';
+import { LoadingFeedback, OperationLoading } from '@/components/LoadingFeedback';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, Edit, Share2, Trash2, Plus, FileText } from 'lucide-react';
+import { Eye, Edit, Share2, Trash2, Plus, FileText, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useErrorHandler } from '@/lib/errorHandling';
+import { useFlipbooks } from '@/hooks/useFlipbooks';
+import { useDeleteFlipbook } from '@/hooks/useFlipbookMutations';
 import { Tables } from '@/integrations/supabase/types';
 
 type Flipbook = Tables<'flipbooks'>;
 
 export default function Dashboard() {
-  const { user, profile } = useAuth();
+  const { user, profile, isLoadingProfile } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [flipbooks, setFlipbooks] = useState<Flipbook[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { handleError, handleAsyncOperation } = useErrorHandler();
+  
+  // Use React Query for optimized flipbook data fetching
+  const {
+    data: flipbooks = [],
+    isLoading,
+    error,
+    refetch: refetchFlipbooks,
+    isRefetching
+  } = useFlipbooks(user?.id);
+  
+  // Use React Query mutation for delete operations
+  const deleteFlipbookMutation = useDeleteFlipbook(user?.id || '');
 
   useEffect(() => {
     if (!user) {
       navigate('/auth');
       return;
     }
-    
-    fetchFlipbooks();
   }, [user, navigate]);
-
-  const fetchFlipbooks = async () => {
-    if (!user) return;
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const { data, error: fetchError } = await supabase
-        .from('flipbooks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (fetchError) {
-        throw new Error('Failed to fetch flipbooks');
-      }
-
-      setFlipbooks(data || []);
-    } catch (err: any) {
-      console.error('Error fetching flipbooks:', err);
-      setError(err.message || 'Failed to load flipbooks');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleDeleteFlipbook = async (flipbookId: string) => {
     if (!confirm('Are you sure you want to delete this flipbook? This action cannot be undone.')) {
       return;
     }
 
-    try {
-      const { error } = await supabase
-        .from('flipbooks')
-        .delete()
-        .eq('id', flipbookId);
-
-      if (error) {
-        throw new Error('Failed to delete flipbook');
+    const result = await handleAsyncOperation(
+      () => deleteFlipbookMutation.mutateAsync(flipbookId),
+      { 
+        component: 'Dashboard',
+        operation: 'deleteFlipbook',
+        userId: user?.id,
+        metadata: { flipbookId }
       }
+    );
 
-      toast({
-        title: 'Success',
-        description: 'Flipbook deleted successfully',
-      });
-
-      // Refresh the list
-      fetchFlipbooks();
-    } catch (err: any) {
-      console.error('Error deleting flipbook:', err);
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to delete flipbook',
-        variant: 'destructive',
+    if (result !== null) {
+      toast.success('Flipbook deleted successfully', {
+        description: 'The flipbook has been permanently removed from your account.',
       });
     }
+    // Error handling is now managed by the error handler utility
   };
 
   const handleShareFlipbook = async (flipbookId: string) => {
@@ -94,14 +73,30 @@ export default function Dashboard() {
     
     try {
       await navigator.clipboard.writeText(url);
-      toast({
-        title: 'Copied!',
-        description: 'Flipbook URL copied to clipboard',
+      toast.success('Link Copied!', {
+        description: 'Flipbook URL has been copied to your clipboard.',
       });
     } catch (error) {
-      toast({
-        title: 'Share this flipbook',
+      // Fallback for browsers that don't support clipboard API
+      toast.info('Share this flipbook', {
         description: url,
+        action: {
+          label: 'Copy',
+          onClick: () => {
+            // Try alternative copy method
+            const textArea = document.createElement('textarea');
+            textArea.value = url;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+              document.execCommand('copy');
+              toast.success('Copied!', { description: 'URL copied to clipboard.' });
+            } catch (err) {
+              toast.error('Copy Failed', { description: 'Please copy the URL manually.' });
+            }
+            document.body.removeChild(textArea);
+          },
+        },
       });
     }
   };
@@ -122,7 +117,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <main className="container mx-auto px-4 py-8 pt-24">
-        {/* Header */}
+        {/* Header - Always show immediately */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold mb-2">My Flipbooks</h1>
@@ -130,11 +125,25 @@ export default function Dashboard() {
               Create and manage your interactive flipbooks
             </p>
           </div>
-          <FlipbookUpload onUploadComplete={fetchFlipbooks} flipbookCount={flipbooks.length} />
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetchFlipbooks()}
+              disabled={isRefetching}
+              className="flex items-center space-x-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </Button>
+            <FlipbookUpload onUploadComplete={() => refetchFlipbooks()} flipbookCount={flipbooks.length} />
+          </div>
         </div>
 
-        {/* Plan Status Display */}
-        {profile && (
+        {/* Plan Status Display - Show skeleton while loading profile */}
+        {isLoadingProfile ? (
+          <PlanStatusSkeleton />
+        ) : profile ? (
           <Card className="mb-6">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -177,35 +186,49 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
-        )}
+        ) : null}
 
-        {/* Error State */}
+        {/* Enhanced Error State */}
         {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <ErrorDisplay
+            error={error}
+            onRetry={() => refetchFlipbooks()}
+            isRetrying={isRefetching}
+            title="Failed to load flipbooks"
+            className="mb-6"
+          />
         )}
 
-        {/* Loading State */}
+        {/* Content Area - Progressive Loading */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading flipbooks...</p>
-            </div>
+          /* Show skeleton cards while loading flipbooks */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <FlipbookCardSkeleton key={index} />
+            ))}
           </div>
         ) : flipbooks.length === 0 ? (
-          /* Empty State */
-          <Card className="text-center py-12">
-            <CardContent>
-              <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No flipbooks yet</h3>
-              <p className="text-muted-foreground mb-6">
-                Create your first interactive flipbook by uploading a PDF
-              </p>
-              <FlipbookUpload onUploadComplete={fetchFlipbooks} flipbookCount={flipbooks.length} />
-            </CardContent>
-          </Card>
+          /* Enhanced Empty State */
+          !error ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No flipbooks yet</h3>
+                <p className="text-muted-foreground mb-6">
+                  Create your first interactive flipbook by uploading a PDF
+                </p>
+                <FlipbookUpload onUploadComplete={() => refetchFlipbooks()} flipbookCount={flipbooks.length} />
+              </CardContent>
+            </Card>
+          ) : (
+            <ErrorEmptyState
+              error={error}
+              onRetry={() => refetchFlipbooks()}
+              isRetrying={isRefetching}
+              title="Unable to load flipbooks"
+              description="We couldn't load your flipbooks. Please try again."
+            />
+          )
         ) : (
           /* Flipbooks Grid */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -265,6 +288,7 @@ export default function Dashboard() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDeleteFlipbook(flipbook.id)}
+                        disabled={deleteFlipbookMutation.isPending}
                         className="text-destructive hover:text-destructive"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -277,8 +301,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Stats Summary */}
-        {flipbooks.length > 0 && (
+        {/* Stats Summary - Only show when flipbooks are loaded and available */}
+        {!isLoading && flipbooks.length > 0 && (
           <Card className="mt-8">
             <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
