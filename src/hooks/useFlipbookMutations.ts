@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { queryKeys, getFlipbookInvalidationKeys } from '@/lib/queryKeys';
-import { defaultMutationOptions } from '@/lib/queryUtils';
 import { Tables } from '@/integrations/supabase/types';
 
 type Flipbook = Tables<'flipbooks'>;
@@ -12,7 +11,7 @@ type Flipbook = Tables<'flipbooks'>;
 export const useDeleteFlipbook = (userId: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<void, Error, string>({
     mutationFn: async (flipbookId: string): Promise<void> => {
       const { error } = await supabase
         .from('flipbooks')
@@ -30,7 +29,6 @@ export const useDeleteFlipbook = (userId: string) => {
         queryClient.invalidateQueries({ queryKey: key });
       });
     },
-    ...defaultMutationOptions,
   });
 };
 
@@ -40,7 +38,7 @@ export const useDeleteFlipbook = (userId: string) => {
 export const useUpdateFlipbook = (userId: string) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<Flipbook, Error, { flipbookId: string; updates: Partial<Flipbook> }>({
     mutationFn: async ({ 
       flipbookId, 
       updates 
@@ -68,7 +66,7 @@ export const useUpdateFlipbook = (userId: string) => {
       });
 
       // Snapshot the previous value
-      const previousFlipbook = queryClient.getQueryData(
+      const previousFlipbook = queryClient.getQueryData<Flipbook>(
         queryKeys.flipbooks.detail(flipbookId)
       );
 
@@ -80,7 +78,7 @@ export const useUpdateFlipbook = (userId: string) => {
 
       return { previousFlipbook };
     },
-    onError: (err, { flipbookId }, context) => {
+    onError: (err, { flipbookId }, context: { previousFlipbook?: Flipbook } | undefined) => {
       // Rollback on error
       if (context?.previousFlipbook) {
         queryClient.setQueryData(
@@ -101,6 +99,5 @@ export const useUpdateFlipbook = (userId: string) => {
         queryClient.invalidateQueries({ queryKey: key });
       });
     },
-    ...defaultMutationOptions,
   });
 };

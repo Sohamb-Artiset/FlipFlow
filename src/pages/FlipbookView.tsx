@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { FlipbookViewer } from '@/components/FlipbookViewer';
 import { PDFProcessor } from '@/lib/pdfProcessor';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
 import { toast } from 'sonner';
 import { ErrorDisplay, ErrorEmptyState } from '@/components/ErrorDisplay';
 import { LoadingFeedback, OperationLoading } from '@/components/LoadingFeedback';
@@ -23,8 +22,6 @@ export default function FlipbookView() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  
-  const { toast } = useToast();
 
   useEffect(() => {
     if (!id) return;

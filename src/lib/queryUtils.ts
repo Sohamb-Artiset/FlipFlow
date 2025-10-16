@@ -152,7 +152,7 @@ export const defaultMutationOptions: Partial<UseMutationOptions> = {
  */
 export const createQueryOptions = <T>(
   options: Partial<UseQueryOptions<T>> = {}
-): UseQueryOptions<T> => ({
+): Partial<UseQueryOptions<T>> => ({
   retry: (failureCount, error) => {
     // Don't retry on authentication errors
     if (error instanceof Error && error.message.toLowerCase().includes('auth')) {

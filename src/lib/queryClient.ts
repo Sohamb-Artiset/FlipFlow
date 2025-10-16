@@ -64,8 +64,3 @@ export const queryClient = new QueryClient({
     },
   },
 });
-
-// Set up global error handler
-queryClient.setQueryDefaults(['*'], {
-  onError: globalErrorHandler,
-});
