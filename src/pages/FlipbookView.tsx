@@ -72,28 +72,14 @@ export default function FlipbookView() {
 
   const trackView = async (flipbookId: string) => {
     try {
-      // Use the database function to safely increment view count and insert view record
-      const { error: rpcError } = await supabase.rpc('increment_view_count', {
-        flipbook_id: flipbookId
+      const { error: viewError } = await supabase.rpc('record_flipbook_view', {
+        p_flipbook_id: flipbookId,
+        p_user_agent: navigator.userAgent,
       });
 
-      if (rpcError) {
-        console.error('Error calling increment_view_count:', rpcError);
+      if (viewError) {
+        console.error('Error recording view:', viewError);
       }
-
-      // Insert view record with user agent
-      const { error: insertError } = await supabase
-        .from('flipbook_views')
-        .insert({
-          flipbook_id: flipbookId,
-          ip_address: null,
-          user_agent: navigator.userAgent,
-        });
-
-      if (insertError) {
-        console.error('Error inserting view record:', insertError);
-      }
-
     } catch (error) {
       console.error('Error tracking view:', error);
       // Don't show error to user for analytics tracking

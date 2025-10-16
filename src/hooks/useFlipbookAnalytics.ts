@@ -4,26 +4,16 @@ import { supabase } from '@/integrations/supabase/client';
 export const useFlipbookAnalytics = () => {
   const trackView = useCallback(async (flipbookId: string) => {
     try {
-      // Get user's IP and user agent
       const userAgent = navigator.userAgent;
-      
-      // Insert view record
-      await supabase
-        .from('flipbook_views')
-        .insert({
-          flipbook_id: flipbookId,
-          ip_address: null, // Will be handled by Supabase RLS
-          user_agent: userAgent,
-        });
-
-      // Increment view count atomically
-      await supabase.rpc('increment_view_count', { 
-        flipbook_id: flipbookId 
+      const { error } = await supabase.rpc('record_flipbook_view', {
+        p_flipbook_id: flipbookId,
+        p_user_agent: userAgent,
       });
-
+      if (error) {
+        console.error('Error recording view:', error);
+      }
     } catch (error) {
       console.error('Error tracking view:', error);
-      // Don't throw error to avoid breaking user experience
     }
   }, []);
 

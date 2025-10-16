@@ -161,6 +161,14 @@ export type Database = {
         Args: { flipbook_id: string }
         Returns: undefined
       }
+      record_flipbook_view: {
+        Args: {
+          p_flipbook_id: string
+          p_user_agent?: string | null
+          p_ip?: string | null
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user"

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigation } from '@/components/Navigation';
@@ -31,6 +31,7 @@ export default function Dashboard() {
   const profile = authProfile as Profile | null;
   const navigate = useNavigate();
   const { handleError, handleAsyncOperation } = useErrorHandler();
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
   
   // Use React Query for optimized flipbook data fetching
   const {
@@ -38,7 +39,10 @@ export default function Dashboard() {
     isLoading,
     error,
     refetch: refetchFlipbooks,
-    isRefetching
+    isRefetching,
+    fetchStatus,
+    isFetching,
+    status,
   } = useFlipbooks(user?.id);
   
   // Use React Query mutation for delete operations
@@ -50,6 +54,16 @@ export default function Dashboard() {
       return;
     }
   }, [user, navigate]);
+
+  // Timeout fallback: if fetch hangs > 10s, show error UI instead of skeletons
+  useEffect(() => {
+    if (fetchStatus === 'fetching') {
+      const timer = setTimeout(() => setLoadTimedOut(true), 10000);
+      return () => clearTimeout(timer);
+    }
+    // Reset timeout flag when not fetching
+    setLoadTimedOut(false);
+  }, [fetchStatus]);
 
   const handleDeleteFlipbook = async (flipbookId: string) => {
     if (!confirm('Are you sure you want to delete this flipbook? This action cannot be undone.')) {
@@ -197,7 +211,7 @@ export default function Dashboard() {
         {/* Enhanced Error State */}
         {error && (
           <ErrorDisplay
-            error={error}
+            error={error instanceof Error ? error : new Error((error as any)?.message || 'Failed to load flipbooks')}
             onRetry={() => refetchFlipbooks()}
             isRetrying={isRefetching}
             title="Failed to load flipbooks"
@@ -206,13 +220,21 @@ export default function Dashboard() {
         )}
 
         {/* Content Area - Progressive Loading */}
-        {isLoading ? (
+        {((fetchStatus === 'fetching') || isFetching) && !loadTimedOut ? (
           /* Show skeleton cards while loading flipbooks */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, index) => (
               <FlipbookCardSkeleton key={index} />
             ))}
           </div>
+        ) : loadTimedOut ? (
+          <ErrorEmptyState
+            error={new Error('The request is taking longer than expected.')}
+            onRetry={() => refetchFlipbooks()}
+            isRetrying={isRefetching}
+            title="Network delay"
+            description="We couldn't load your flipbooks yet. Please try again."
+          />
         ) : flipbooks.length === 0 ? (
           /* Enhanced Empty State */
           !error ? (
@@ -308,7 +330,7 @@ export default function Dashboard() {
         )}
 
         {/* Stats Summary - Only show when flipbooks are loaded and available */}
-        {!isLoading && flipbooks.length > 0 && (
+        {!(fetchStatus === 'fetching' || isFetching) && flipbooks.length > 0 && (
           <Card className="mt-8">
             <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
@@ -340,6 +362,20 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         )}
+
+        {/* DEBUG: Remove after verifying fix */}
+        <Card className="mt-6">
+          <CardContent className="text-xs text-muted-foreground space-y-1">
+            <div><span className="font-semibold">User ID:</span> {user?.id || 'none'}</div>
+            <div><span className="font-semibold">isLoading:</span> {String(isLoading)}</div>
+            <div><span className="font-semibold">isFetching:</span> {String(isFetching)}</div>
+            <div><span className="font-semibold">fetchStatus:</span> {String(fetchStatus)}</div>
+            <div><span className="font-semibold">status:</span> {String(status)}</div>
+            <div><span className="font-semibold">timedOut:</span> {String(loadTimedOut)}</div>
+            <div><span className="font-semibold">error:</span> {(error as any)?.message || (error as any) || 'none'}</div>
+            <div><span className="font-semibold">flipbooks:</span> {flipbooks.length}</div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

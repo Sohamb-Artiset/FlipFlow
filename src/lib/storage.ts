@@ -23,6 +23,7 @@ export const uploadPDF = async (
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: false,
+        contentType: 'application/pdf',
       });
 
     if (error) {

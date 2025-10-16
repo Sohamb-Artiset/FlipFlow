@@ -8,8 +8,38 @@ const workerSrcs = [
   `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.min.mjs`
 ];
 
-// Set the worker source - use the first one as primary
-pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrcs[0];
+// Helper: race a promise against a timeout
+const withTimeout = async <T>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
+  return await Promise.race<T>([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), ms))
+  ]);
+};
+
+// Attempt to set a working PDF.js worker source by trying candidates in order
+// This avoids the common issue where a local worker path 404s and PDF.js hangs
+const getDocumentWithWorkerFallback = async (
+  params: Parameters<typeof pdfjsLib.getDocument>[0],
+  candidates: string[],
+  timeoutMs: number
+) => {
+  let lastError: unknown = null;
+  for (const src of candidates) {
+    try {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = src;
+      const docProxy = await withTimeout(
+        pdfjsLib.getDocument(params).promise,
+        timeoutMs,
+        `PDF worker load timed out (${timeoutMs}ms) for: ${src}`
+      );
+      return docProxy;
+    } catch (err) {
+      lastError = err;
+      // Try next candidate
+    }
+  }
+  throw lastError ?? new Error('Failed to initialize PDF.js worker');
+};
 
 export interface PDFPage {
   pageNumber: number;
@@ -29,12 +59,16 @@ export class PDFProcessor {
 
   async loadPDF(pdfUrl: string): Promise<PDFDocument> {
     try {
-      // Load the PDF document with basic options
-      this.pdfDocument = await pdfjsLib.getDocument({
-        url: pdfUrl,
-        disableAutoFetch: false,
-        disableStream: false,
-      }).promise;
+      // Load the PDF using a resilient worker fallback strategy
+      this.pdfDocument = await getDocumentWithWorkerFallback(
+        {
+          url: pdfUrl,
+          disableAutoFetch: false,
+          disableStream: false,
+        },
+        workerSrcs,
+        6000
+      );
       
       const pages: PDFPage[] = [];
       const totalPages = this.pdfDocument.numPages;

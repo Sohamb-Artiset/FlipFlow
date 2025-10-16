@@ -25,7 +25,7 @@ export const useFlipbooks = (userId: string | undefined) => {
 
       const { data, error } = await supabase
         .from('flipbooks')
-        .select('*')
+        .select('id,title,description,created_at,is_public,view_count')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
