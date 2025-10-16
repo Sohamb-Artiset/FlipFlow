@@ -29,6 +29,12 @@ export default function FlipbookView() {
     fetchFlipbook();
   }, [id]);
 
+  useEffect(() => {
+    if (flipbook && !pdfDocument && !isProcessing) {
+      loadPDF();
+    }
+  }, [flipbook]);
+
   const fetchFlipbook = async () => {
     if (!id) return;
 
@@ -66,22 +72,27 @@ export default function FlipbookView() {
 
   const trackView = async (flipbookId: string) => {
     try {
-      // Get user's IP and user agent
-      const userAgent = navigator.userAgent;
-      
-      // Insert view record
-      await supabase
+      // Use the database function to safely increment view count and insert view record
+      const { error: rpcError } = await supabase.rpc('increment_view_count', {
+        flipbook_id: flipbookId
+      });
+
+      if (rpcError) {
+        console.error('Error calling increment_view_count:', rpcError);
+      }
+
+      // Insert view record with user agent
+      const { error: insertError } = await supabase
         .from('flipbook_views')
         .insert({
           flipbook_id: flipbookId,
           ip_address: null,
-          user_agent: userAgent,
+          user_agent: navigator.userAgent,
         });
 
-      // Use the database function to safely increment view count
-      await supabase.rpc('increment_view_count', {
-        flipbook_id: flipbookId
-      });
+      if (insertError) {
+        console.error('Error inserting view record:', insertError);
+      }
 
     } catch (error) {
       console.error('Error tracking view:', error);
