@@ -14,6 +14,12 @@ import { uploadPDF } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { canCreateFlipbook, getPlanConfig, PlanType } from '@/lib/plans';
+import { Tables } from '@/integrations/supabase/types';
+
+// Extended profile type with plan field
+type Profile = Tables<'profiles'> & {
+  plan?: string | null;
+};
 
 interface FlipbookUploadProps {
   onUploadComplete?: () => void;
@@ -30,7 +36,8 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
   const [error, setError] = useState<string | null>(null);
   
   const { toast } = useToast();
-  const { user, profile } = useAuth();
+  const { user, profile: authProfile } = useAuth();
+  const profile = authProfile as Profile | null;
 
   // Validation function to check plan limits before upload
   const validateUploadLimits = (): { canUpload: boolean; errorMessage?: string } => {

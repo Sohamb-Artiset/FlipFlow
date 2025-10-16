@@ -4,7 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 
-type Profile = Tables<'profiles'>;
+// Extended profile type with plan field
+type Profile = Tables<'profiles'> & {
+  plan?: string | null;
+};
 
 interface AuthContextType {
   user: User | null;

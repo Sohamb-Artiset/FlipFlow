@@ -21,8 +21,14 @@ import { Tables } from '@/integrations/supabase/types';
 
 type Flipbook = Tables<'flipbooks'>;
 
+// Extended profile type with plan field
+type Profile = Tables<'profiles'> & {
+  plan?: string | null;
+};
+
 export default function Dashboard() {
-  const { user, profile, isLoadingProfile } = useAuth();
+  const { user, profile: authProfile, isLoadingProfile } = useAuth();
+  const profile = authProfile as Profile | null;
   const navigate = useNavigate();
   const { handleError, handleAsyncOperation } = useErrorHandler();
   
