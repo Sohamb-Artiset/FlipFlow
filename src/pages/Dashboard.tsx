@@ -157,21 +157,21 @@ export default function Dashboard() {
                   <div>
                     <h3 className="font-semibold text-sm">Current Plan</h3>
                     <p className="text-muted-foreground text-sm">
-                      {profile.plan === 'premium' ? 'Premium Plan' : 'Free Plan'}
+                      {(profile.plan || 'free') === 'premium' ? 'Premium Plan' : 'Free Plan'}
                     </p>
                   </div>
                   <div className="h-8 w-px bg-border" />
                   <div>
                     <h3 className="font-semibold text-sm">Flipbook Usage</h3>
                     <p className="text-muted-foreground text-sm">
-                      {profile.plan === 'premium' 
+                      {(profile.plan || 'free') === 'premium' 
                         ? `${flipbooks.length} flipbooks (Unlimited)` 
                         : `${flipbooks.length}/3 flipbooks used`
                       }
                     </p>
                   </div>
                 </div>
-                {profile.plan === 'free' && flipbooks.length >= 2 && (
+                {(profile.plan || 'free') === 'free' && flipbooks.length >= 2 && (
                   <div className="text-right">
                     {flipbooks.length === 2 ? (
                       <Badge variant="secondary" className="text-amber-600">
@@ -184,7 +184,7 @@ export default function Dashboard() {
                     )}
                   </div>
                 )}
-                {profile.plan === 'premium' && (
+                {(profile.plan || 'free') === 'premium' && (
                   <Badge variant="default" className="bg-green-600">
                     Premium
                   </Badge>

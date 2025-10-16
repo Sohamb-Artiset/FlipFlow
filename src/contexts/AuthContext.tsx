@@ -76,9 +76,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (existingProfile && !fetchError) {
         // Ensure plan field exists and defaults to 'free' if null/undefined
-        const profileWithPlan = {
+        const profileWithPlan: Profile = {
           ...existingProfile,
-          plan: existingProfile.plan || 'free'
+          plan: (existingProfile as any).plan || 'free'
         };
         setProfile(profileWithPlan);
         return;
@@ -96,7 +96,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           id: userId,
           email: userEmail,
           plan: 'free' // Default to free plan
-        })
+        } as any)
         .select()
         .single();
 
@@ -104,7 +104,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.error('Error creating profile:', createError);
         console.warn('Falling back to free plan restrictions for user:', userId);
         // Set a fallback profile with free plan
-        setProfile({
+        const fallbackProfile: Profile = {
           id: userId,
           email: userEmail,
           full_name: null,
@@ -112,11 +112,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           plan: 'free',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        });
+        };
+        setProfile(fallbackProfile);
         return;
       }
 
-      setProfile(newProfile);
+      setProfile(newProfile as Profile);
     } catch (error) {
       console.error('Unexpected error in fetchOrCreateProfile:', error);
       console.warn('Falling back to free plan restrictions for security. User:', userId);
@@ -125,7 +126,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setProfileError(errorMessage);
       
       // Set fallback profile with free plan for security
-      setProfile({
+      const fallbackProfile: Profile = {
         id: userId,
         email: userEmail,
         full_name: null,
@@ -133,7 +134,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         plan: 'free',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      });
+      };
+      setProfile(fallbackProfile);
 
       // Show user-friendly error notification
       toast.error('Profile Loading Issue', {

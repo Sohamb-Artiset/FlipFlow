@@ -53,7 +53,7 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
       return { canUpload: true };
     }
 
-    const userPlan = (profile.plan as PlanType) || 'free';
+    const userPlan = ((profile.plan || 'free') as PlanType);
     const canUpload = canCreateFlipbook(userPlan, flipbookCount);
     
     if (!canUpload) {
@@ -242,7 +242,7 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
         {/* Plan Status Information */}
         {profile && (
           <div className="bg-muted/50 rounded-lg p-3 text-sm">
-            {profile.plan === 'premium' ? (
+            {(profile.plan || 'free') === 'premium' ? (
               <p className="text-green-600 font-medium">
                 Premium Plan - Unlimited flipbooks
               </p>
