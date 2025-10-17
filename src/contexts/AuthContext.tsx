@@ -13,6 +13,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  authLoading: boolean;
   isLoadingProfile: boolean;
   profileError: string | null;
   signOut: () => Promise<void>;
@@ -24,6 +25,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   profile: null,
+  authLoading: true,
   isLoadingProfile: false,
   profileError: null,
   signOut: async () => {},
@@ -43,6 +45,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   
@@ -179,6 +182,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         setSession(session);
         setUser(session?.user ?? null);
+        // When we receive an auth state change for the first time, auth has resolved
+        setAuthLoading(false);
         
         if (session?.user) {
           // Fetch or create profile when user authenticates
@@ -200,6 +205,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       setSession(session);
       setUser(session?.user ?? null);
+      // Initial session check complete
+      setAuthLoading(false);
       
       if (session?.user) {
         // Fetch or create profile for existing session
@@ -265,6 +272,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       user, 
       session, 
       profile, 
+      authLoading,
       isLoadingProfile, 
       profileError,
       signOut, 
