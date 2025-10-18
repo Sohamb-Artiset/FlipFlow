@@ -19,6 +19,18 @@ export const useFlipbookAnalytics = () => {
 
   const getFlipbookStats = useCallback(async (flipbookId: string) => {
     try {
+      // First check if user has access to this flipbook (owner only via RLS)
+      const { data: flipbookData, error: flipbookError } = await supabase
+        .from('flipbooks')
+        .select('id, user_id')
+        .eq('id', flipbookId)
+        .single();
+
+      if (flipbookError) {
+        throw new Error('Flipbook not found or access denied');
+      }
+
+      // Now fetch views (RLS will ensure only owner can see)
       const { data, error } = await supabase
         .from('flipbook_views')
         .select('*')
