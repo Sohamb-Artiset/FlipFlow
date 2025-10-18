@@ -231,6 +231,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       profileFetchInProgress.current = false;
       currentUserId.current = null;
 
+      // Clear localStorage to remove invalid tokens
+      localStorage.removeItem('sb-wpqetuxkjsmzxzuvybes-auth-token');
+
       // Then sign out from Supabase
       const { error } = await supabase.auth.signOut();
       
