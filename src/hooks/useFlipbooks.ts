@@ -23,6 +23,18 @@ export const useFlipbooks = (userId: string | undefined) => {
         throw new Error('User ID is required');
       }
 
+      console.log('Fetching flipbooks for user:', userId);
+
+      // Get current session to ensure we're authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('No valid session:', sessionError);
+        throw new Error('Authentication required. Please sign in again.');
+      }
+
+      console.log('Session valid, fetching flipbooks...');
+
       const { data, error } = await supabase
         .from('flipbooks')
         .select('*')
@@ -30,13 +42,18 @@ export const useFlipbooks = (userId: string | undefined) => {
         .order('created_at', { ascending: false });
 
       if (error) {
+        console.error('Error fetching flipbooks:', error);
         throw new Error(`Failed to fetch flipbooks: ${error.message}`);
       }
 
+      console.log('Flipbooks fetched:', data?.length || 0);
       return data || [];
     },
     enabled: !!userId, // Only run query when userId is available
-    ...queryOptions.flipbooks, // Apply flipbook-specific cache settings
+    staleTime: 30000, // 30 seconds
+    gcTime: 300000, // 5 minutes
+    retry: 2,
+    retryDelay: 1000,
     throwOnError: false, // Handle errors gracefully in components
   });
 };

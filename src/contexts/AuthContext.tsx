@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Extended profile type with plan field
 type Profile = Tables<'profiles'> & {
@@ -48,6 +49,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [authLoading, setAuthLoading] = useState(true);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   
   // Use refs to prevent race conditions and multiple fetches
   const profileFetchInProgress = useRef(false);
@@ -230,6 +232,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setProfileError(null);
       profileFetchInProgress.current = false;
       currentUserId.current = null;
+
+      // Clear React Query cache
+      queryClient.clear();
 
       // Clear localStorage to remove invalid tokens
       localStorage.removeItem('sb-wpqetuxkjsmzxzuvybes-auth-token');
