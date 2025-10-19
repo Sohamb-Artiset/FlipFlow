@@ -1,33 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { FlipbookViewer } from '@/components/FlipbookViewer';
 import { PDFProcessor } from '@/lib/pdfProcessor';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ErrorDisplay, ErrorEmptyState } from '@/components/ErrorDisplay';
+import { ErrorDisplay } from '@/components/ErrorDisplay';
 import { LoadingFeedback, OperationLoading } from '@/components/LoadingFeedback';
 import { Share2, Eye, Calendar } from 'lucide-react';
-import { Tables } from '@/integrations/supabase/types';
-
-type Flipbook = Tables<'flipbooks'>;
+import { useFlipbook } from '@/hooks/useFlipbooks';
 
 export default function FlipbookView() {
   const { id } = useParams<{ id: string }>();
-  const [flipbook, setFlipbook] = useState<Flipbook | null>(null);
   const [pdfDocument, setPdfDocument] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
-    
-    fetchFlipbook();
-  }, [id]);
+  // Use React Query hook for better error handling and caching
+  const { data: flipbook, isLoading, error: queryError, refetch } = useFlipbook(id);
 
   useEffect(() => {
     if (flipbook && !pdfDocument && !isProcessing) {
@@ -35,40 +25,12 @@ export default function FlipbookView() {
     }
   }, [flipbook]);
 
-  const fetchFlipbook = async () => {
-    if (!id) return;
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // Fetch flipbook data
-      const { data, error: fetchError } = await supabase
-        .from('flipbooks')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) {
-        throw new Error('Flipbook not found');
-      }
-
-      if (!data.is_public) {
-        throw new Error('This flipbook is private');
-      }
-
-      setFlipbook(data);
-
+  useEffect(() => {
+    if (flipbook) {
       // Track view
-      trackView(data.id);
-
-    } catch (err: any) {
-      console.error('Error fetching flipbook:', err);
-      setError(err.message || 'Failed to load flipbook');
-    } finally {
-      setIsLoading(false);
+      trackView(flipbook.id);
     }
-  };
+  }, [flipbook?.id]);
 
   const trackView = async (flipbookId: string) => {
     try {
@@ -91,7 +53,6 @@ export default function FlipbookView() {
 
     try {
       setIsProcessing(true);
-      setError(null);
 
       const processor = new PDFProcessor();
       const document = await processor.loadPDF(flipbook.pdf_url);
@@ -103,7 +64,9 @@ export default function FlipbookView() {
 
     } catch (err: any) {
       console.error('Error loading PDF:', err);
-      setError(err.message || 'Failed to load PDF');
+      toast.error('Failed to load PDF', {
+        description: err.message || 'Please try again later'
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -163,14 +126,14 @@ export default function FlipbookView() {
     );
   }
 
-  if (error) {
+  if (queryError) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <ErrorDisplay
-          error={new Error(error)}
+          error={queryError as Error}
           variant="card"
           title="Unable to Load Flipbook"
-          onRetry={() => fetchFlipbook()}
+          onRetry={() => refetch()}
           isRetrying={isLoading}
           showDetails={false}
           className="w-full max-w-md"
@@ -181,6 +144,21 @@ export default function FlipbookView() {
 
   if (!flipbook) {
     return <Navigate to="/" replace />;
+  }
+
+  // Check if flipbook is public
+  if (!flipbook.is_public) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <ErrorDisplay
+          error={new Error('This flipbook is private')}
+          variant="card"
+          title="Private Flipbook"
+          showDetails={false}
+          className="w-full max-w-md"
+        />
+      </div>
+    );
   }
 
   return (
@@ -243,23 +221,6 @@ export default function FlipbookView() {
           </Card>
         )}
 
-        {/* Error State */}
-        {error && (
-          <ErrorDisplay
-            error={new Error(error)}
-            variant="alert"
-            onRetry={() => {
-              setError(null);
-              if (flipbook?.pdf_url) {
-                loadPDF();
-              } else {
-                fetchFlipbook();
-              }
-            }}
-            isRetrying={isLoading || isProcessing}
-            className="mb-8"
-          />
-        )}
 
         {/* Flipbook Viewer */}
         {pdfDocument && (
