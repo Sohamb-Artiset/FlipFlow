@@ -1192,6 +1192,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const remoteState = data.state as AuthStateSnapshot;
             console.log('Received remote auth state update:', remoteState);
             
+            // CRITICAL: Only apply remote state if it's newer than our current state
+            // This prevents stale data from overwriting fresh auth state
+            const isRemoteStateNewer = remoteState.lastUpdated > lastStateUpdate;
+            
+            if (!isRemoteStateNewer) {
+              console.log('Ignoring stale remote state (older than current state)');
+              return;
+            }
+            
             // Update local state to match remote state
             if (remoteState.isAuthenticated && remoteState.userId) {
               // Remote tab is authenticated - sync if we're not or have different user
