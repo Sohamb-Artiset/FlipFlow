@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useErrorHandler } from '@/lib/errorHandling';
 import { z } from 'zod';
 
 const authSchema = z.object({
@@ -22,6 +23,7 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { handleError } = useErrorHandler();
   const [activeTab, setActiveTab] = useState(searchParams.get('signup') ? 'signup' : 'signin');
 
   useEffect(() => {
@@ -60,9 +62,17 @@ export default function Auth() {
         description: 'Please check your email to confirm your account.',
       });
     } catch (error: any) {
+      // Use centralized error handling
+      handleError(error, {
+        component: 'Auth',
+        operation: 'signUp',
+      }, {
+        showToast: false, // We'll show custom toast
+      });
+
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to sign up',
+        title: 'Sign Up Failed',
+        description: error.message || 'Failed to create account',
         variant: 'destructive',
       });
     } finally {
@@ -94,8 +104,16 @@ export default function Auth() {
       });
       navigate('/dashboard');
     } catch (error: any) {
+      // Use centralized error handling
+      handleError(error, {
+        component: 'Auth',
+        operation: 'signIn',
+      }, {
+        showToast: false, // We'll show custom toast
+      });
+
       toast({
-        title: 'Error',
+        title: 'Sign In Failed',
         description: error.message || 'Failed to sign in',
         variant: 'destructive',
       });

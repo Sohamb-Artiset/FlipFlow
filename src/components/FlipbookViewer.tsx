@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ZoomIn, ZoomOut, Maximize, Minimize, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ZoomIn, ZoomOut, Maximize, Minimize, ChevronLeft, ChevronRight, Download, Lock, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import HTMLFlipBook from 'react-pageflip';
 import { PDFDocument } from '@/lib/pdfProcessor';
 import { PageCover, Page } from '@/components/PageComponents';
 import { Tables } from '@/integrations/supabase/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { planManager, PlanContext, getPlanUpgradePrompt } from '@/lib/planManager';
+import { UpgradePrompt } from '@/components/UpgradePrompt';
+import { useFlipbookPermissions } from '@/hooks/usePermissions';
+import { toast } from 'sonner';
 
 interface FlipbookViewerProps {
   pdfDocument: PDFDocument;
@@ -14,6 +20,7 @@ interface FlipbookViewerProps {
   logoUrl?: string;
   className?: string;
   flipbook?: Tables<'flipbooks'>;
+  flipbookCount?: number;
 }
 
 export const FlipbookViewer = ({ 
@@ -21,8 +28,10 @@ export const FlipbookViewer = ({
   backgroundColor = '#ffffff',
   logoUrl,
   className = '',
-  flipbook
+  flipbook,
+  flipbookCount = 0
 }: FlipbookViewerProps) => {
+  const { user, profile } = useAuth();
   const showCovers = flipbook?.show_covers ?? false;
   const flipBookRef = useRef<typeof HTMLFlipBook>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -31,6 +40,38 @@ export const FlipbookViewer = ({
   const [zoom, setZoom] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [pdfDimensions, setPdfDimensions] = useState({ width: 400, height: 600 });
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+
+  // Check permissions for this flipbook
+  const permissions = useFlipbookPermissions(flipbook);
+
+  // Create plan context for validation
+  const planContext: PlanContext = {
+    userId: user?.id,
+    currentFlipbookCount: flipbookCount,
+    profile: profile,
+  };
+
+  // Early return if user doesn't have permission to view this flipbook
+  if (!permissions.canView) {
+    return (
+      <Card className={`p-8 text-center ${className}`}>
+        <div className="flex flex-col items-center space-y-4">
+          <Lock className="w-12 h-12 text-muted-foreground" />
+          <h3 className="text-lg font-semibold">Access Restricted</h3>
+          <p className="text-muted-foreground max-w-md">
+            This flipbook is private and you don't have permission to view it. 
+            {!user && " Please sign in if you have access to this content."}
+          </p>
+          {!user && (
+            <Button onClick={() => window.location.href = '/auth'}>
+              Sign In
+            </Button>
+          )}
+        </div>
+      </Card>
+    );
+  }
 
   useEffect(() => {
     setTotalPages(pdfDocument.pages.length);
@@ -74,12 +115,49 @@ export const FlipbookViewer = ({
   };
 
   const toggleFullscreen = () => {
+    // Check if user can access fullscreen (premium feature)
+    const validation = planManager.validateAction('advanced_features', planContext);
+    if (!validation.allowed) {
+      const upgradePrompt = getPlanUpgradePrompt(
+        planManager.getUsageSummary(planContext).plan,
+        'advanced_features',
+        planContext
+      );
+      toast.error(upgradePrompt.title, {
+        description: upgradePrompt.message,
+      });
+      setShowUpgradePrompt(true);
+      return;
+    }
+
     if (!isFullscreen) {
       document.documentElement.requestFullscreen?.();
     } else {
       document.exitFullscreen?.();
     }
     setIsFullscreen(!isFullscreen);
+  };
+
+  const handleExportFlipbook = () => {
+    // Check if user can export flipbooks (premium feature)
+    const validation = planManager.validateAction('export_flipbook', planContext);
+    if (!validation.allowed) {
+      const upgradePrompt = getPlanUpgradePrompt(
+        planManager.getUsageSummary(planContext).plan,
+        'export_flipbook',
+        planContext
+      );
+      toast.error(upgradePrompt.title, {
+        description: upgradePrompt.message,
+      });
+      setShowUpgradePrompt(true);
+      return;
+    }
+
+    // Export functionality would go here
+    toast.success('Export feature coming soon!', {
+      description: 'PDF export functionality will be available in the next update.',
+    });
   };
 
   // Handle fullscreen change events
@@ -129,6 +207,20 @@ export const FlipbookViewer = ({
 
   return (
     <div className={`flipbook-container ${className}`}>
+      {/* Upgrade Prompt */}
+      {showUpgradePrompt && (
+        <Card className="mb-4">
+          <UpgradePrompt
+            config={getPlanUpgradePrompt(
+              planManager.getUsageSummary(planContext).plan,
+              'advanced_features',
+              planContext
+            )}
+            compact={false}
+          />
+        </Card>
+      )}
+
       {/* Controls */}
       <Card className="mb-4 p-3">
         <div className="flex items-center justify-between">
@@ -189,6 +281,14 @@ export const FlipbookViewer = ({
               ) : (
                 <Maximize className="w-4 h-4" />
               )}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportFlipbook}
+            >
+              <Download className="w-4 h-4" />
             </Button>
           </div>
         </div>

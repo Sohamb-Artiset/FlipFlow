@@ -14,6 +14,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { ArrowLeft, Eye, Loader2 } from 'lucide-react';
+import { useFlipbooks } from '@/hooks/useFlipbooks';
+import { planManager, PlanContext, getPlanUpgradePrompt } from '@/lib/planManager';
+import { UpgradePrompt } from '@/components/UpgradePrompt';
 
 type Flipbook = Tables<'flipbooks'>;
 
@@ -21,7 +24,10 @@ export default function FlipbookEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  
+  // Get user's flipbook count for plan validation
+  const { data: flipbooks = [] } = useFlipbooks(user?.id);
   
   const [flipbook, setFlipbook] = useState<Flipbook | null>(null);
   const [pdfDocument, setPdfDocument] = useState<any>(null);
@@ -30,6 +36,13 @@ export default function FlipbookEdit() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+
+  // Create plan context for validation
+  const planContext: PlanContext = {
+    userId: user?.id,
+    currentFlipbookCount: flipbooks.length,
+    profile: profile,
+  };
 
   useEffect(() => {
     if (!id || !user) return;
@@ -97,6 +110,22 @@ export default function FlipbookEdit() {
 
   const handleSave = async (updates: Partial<Flipbook>) => {
     if (!id || !flipbook) return;
+
+    // Validate plan permissions for update operation
+    const validation = planManager.validateAction('update_flipbook', planContext);
+    if (!validation.allowed) {
+      const upgradePrompt = getPlanUpgradePrompt(
+        planManager.getUsageSummary(planContext).plan,
+        'update_flipbook',
+        planContext
+      );
+      toast({
+        title: upgradePrompt.title,
+        description: upgradePrompt.message,
+        variant: 'destructive',
+      });
+      return;
+    }
 
     try {
       setIsSaving(true);
@@ -209,6 +238,7 @@ export default function FlipbookEdit() {
               onUpdate={handleUpdate}
               onSave={handleSave}
               isSaving={isSaving}
+              flipbookCount={flipbooks.length}
             />
           </div>
 
@@ -240,6 +270,7 @@ export default function FlipbookEdit() {
                     backgroundColor={flipbook.background_color || '#ffffff'}
                     logoUrl={flipbook.logo_url || undefined}
                     flipbook={flipbook}
+                    flipbookCount={flipbooks.length}
                   />
                 </div>
               ) : (
@@ -278,6 +309,7 @@ export default function FlipbookEdit() {
                   backgroundColor={flipbook.background_color || '#ffffff'}
                   logoUrl={flipbook.logo_url || undefined}
                   flipbook={flipbook}
+                  flipbookCount={flipbooks.length}
                 />
               ) : (
                 <div className="text-center py-8">

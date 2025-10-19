@@ -7,14 +7,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Upload, FileText, X, Check } from 'lucide-react';
+import { Upload, FileText, X, Check, Lock } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { validatePDFFile, formatFileSize } from '@/lib/pdfProcessor';
 import { uploadPDF } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { canCreateFlipbook, getPlanConfig, PlanType } from '@/lib/plans';
 import { Tables } from '@/integrations/supabase/types';
+import { useErrorHandler } from '@/lib/errorHandling';
+import { useCreateFlipbook } from '@/hooks/useFlipbookMutations';
+import { planManager, getPlanUpgradePrompt, PlanContext } from '@/lib/planManager';
+import { UpgradePrompt, UsageIndicator } from '@/components/UpgradePrompt';
+import { useUserPermissions } from '@/hooks/usePermissions';
 
 // Extended profile type with plan field
 type Profile = Tables<'profiles'> & {
@@ -37,35 +41,35 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
   
   const { toast } = useToast();
   const { user, profile: authProfile } = useAuth();
+  const { handleError } = useErrorHandler();
   const profile = authProfile as Profile | null;
+  const createFlipbookMutation = useCreateFlipbook(user?.id || '');
 
-  // Validation function to check plan limits before upload
-  const validateUploadLimits = (): { canUpload: boolean; errorMessage?: string } => {
-    if (!profile) {
-      // Default to free plan restrictions if profile is not available
-      const freeConfig = getPlanConfig('free');
-      if (flipbookCount >= freeConfig.maxFlipbooks) {
-        return {
-          canUpload: false,
-          errorMessage: `You have reached the maximum of ${freeConfig.maxFlipbooks} flipbooks for the free plan. Please upgrade to create more.`
-        };
-      }
-      return { canUpload: true };
-    }
+  // Check user permissions
+  const userPermissions = useUserPermissions();
 
-    const userPlan = ((profile.plan || 'free') as PlanType);
-    const canUpload = canCreateFlipbook(userPlan, flipbookCount);
-    
-    if (!canUpload) {
-      const planConfig = getPlanConfig(userPlan);
-      return {
-        canUpload: false,
-        errorMessage: `You have reached the maximum of ${planConfig.maxFlipbooks} flipbooks for the ${planConfig.displayName}. Please upgrade to create more.`
-      };
-    }
-
-    return { canUpload: true };
+  // Create plan context for centralized validation
+  // PlanManager handles security-first fallbacks when profile data is unavailable
+  const planContext: PlanContext = {
+    userId: user?.id,
+    currentFlipbookCount: flipbookCount,
+    profile: profile,
   };
+
+  // Use centralized plan validation - replaces all inline plan checks
+  // PlanManager ensures consistent limit enforcement and error messaging
+  const validation = planManager.validateAction('create_flipbook', planContext);
+  const usageSummary = planManager.getUsageSummary(planContext);
+
+  // Check if user can upload files (requires authentication)
+  if (!userPermissions.canUploadFiles) {
+    return (
+      <Button disabled className="flex items-center space-x-2">
+        <Lock className="w-4 h-4" />
+        <span>Sign In to Upload</span>
+      </Button>
+    );
+  }
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -99,13 +103,14 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
       return;
     }
 
-    // Validate upload limits before processing
-    const validation = validateUploadLimits();
-    if (!validation.canUpload) {
-      setError(validation.errorMessage || 'Upload limit reached');
+    // Enforce plan limits using centralized validation
+    // PlanManager handles all plan validation logic with security-first fallbacks
+    if (!validation.allowed) {
+      const upgradePrompt = getPlanUpgradePrompt(usageSummary.plan, 'create_flipbook', planContext);
+      setError(validation.reason || 'Upload limit reached');
       toast({
-        title: 'Upload Limit Reached',
-        description: validation.errorMessage || 'You have reached your plan limit',
+        title: upgradePrompt.title,
+        description: upgradePrompt.message,
         variant: 'destructive',
       });
       return;
@@ -117,16 +122,20 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
 
     try {
       // Ensure user profile exists - critical for RLS policies
+      // Use security-first approach: preserve existing plan or default to 'free'
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
           email: user.email || '',
           full_name: user.user_metadata?.full_name || null,
+          plan: profile?.plan || 'free', // Security-first fallback to free plan
         });
 
       if (profileError) {
-        console.error('Profile upsert error:', profileError);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Profile upsert error:', profileError);
+        }
         throw new Error(`Profile setup failed: ${profileError.message}. Please try logging out and back in.`);
       }
 
@@ -142,29 +151,24 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
       );
 
       if (uploadError || !pdfUrl) {
-        console.error('Storage upload error:', uploadError);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Storage upload error:', uploadError);
+        }
         throw new Error(`Storage upload failed: ${uploadError || 'Unknown error'}`);
       }
 
       setUploadProgress(50);
 
-      // Create flipbook record in database
-      const { error: dbError } = await supabase
-        .from('flipbooks')
-        .insert({
-          id: flipbookId,
-          user_id: user.id,
-          title: title || selectedFile.name.replace('.pdf', ''),
-          description: description || null,
-          pdf_url: pdfUrl,
-          is_public: true,
-          show_covers: true,
-        });
-
-      if (dbError) {
-        console.error('Database insert error:', dbError);
-        throw new Error(`Database save failed: ${dbError.message || 'Unknown error'}`);
-      }
+      // Create flipbook record in database with optimistic updates
+      await createFlipbookMutation.mutateAsync({
+        id: flipbookId,
+        user_id: user.id,
+        title: title || selectedFile.name.replace('.pdf', ''),
+        description: description || null,
+        pdf_url: pdfUrl,
+        is_public: true,
+        show_covers: true,
+      });
 
       setUploadProgress(100);
 
@@ -184,13 +188,20 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
       onUploadComplete?.();
 
     } catch (error: any) {
-      console.error('Upload error:', error);
-      setError(error.message || 'Failed to upload flipbook');
+      // Use centralized error handling
+      const errorReport = handleError(error, {
+        component: 'FlipbookUpload',
+        operation: 'uploadFlipbook',
+        userId: user?.id,
+        metadata: { fileName: selectedFile?.name },
+      });
+
+      setError(errorReport.message);
       
       // Show detailed error to user
       toast({
         title: 'Upload Failed',
-        description: error.message || 'Failed to upload flipbook',
+        description: errorReport.message,
         variant: 'destructive',
       });
     } finally {
@@ -206,16 +217,13 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
     setError(null);
   };
 
-  // Check if user can create more flipbooks
-  const validation = validateUploadLimits();
-  const canUpload = validation.canUpload;
-
   const handleDialogOpen = (open: boolean) => {
-    if (open && !canUpload) {
-      // Show error message when trying to open dialog at limit
+    if (open && !validation.allowed) {
+      // Use centralized upgrade prompt messaging for consistency
+      const upgradePrompt = getPlanUpgradePrompt(usageSummary.plan, 'create_flipbook', planContext);
       toast({
-        title: 'Upload Limit Reached',
-        description: validation.errorMessage || 'You have reached your plan limit',
+        title: upgradePrompt.title,
+        description: upgradePrompt.message,
         variant: 'destructive',
       });
       return;
@@ -226,7 +234,7 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogOpen}>
       <DialogTrigger asChild>
-        <Button disabled={!canUpload}>
+        <Button disabled={!validation.allowed}>
           <Upload className="w-4 h-4 mr-2" />
           Create Flipbook
         </Button>
@@ -240,24 +248,33 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
         </DialogHeader>
 
         {/* Plan Status Information */}
-        {profile && (
-          <div className="bg-muted/50 rounded-lg p-3 text-sm">
-            {(profile.plan || 'free') === 'premium' ? (
-              <p className="text-green-600 font-medium">
-                Premium Plan - Unlimited flipbooks
-              </p>
-            ) : (
-              <p className="text-muted-foreground">
-                Free Plan - {flipbookCount}/3 flipbooks used
-                {flipbookCount >= 2 && (
-                  <span className="text-amber-600 font-medium ml-2">
-                    {flipbookCount === 2 ? '1 remaining' : 'Limit reached'}
-                  </span>
-                )}
-              </p>
+        <div className="bg-muted/50 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">{usageSummary.planDisplayName}</span>
+            {usageSummary.isPremium && (
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                Premium
+              </span>
             )}
           </div>
-        )}
+          
+          <UsageIndicator
+            current={usageSummary.currentFlipbooks}
+            limit={usageSummary.maxFlipbooks === 'Unlimited' ? 'unlimited' : usageSummary.maxFlipbooks}
+            label="Flipbooks"
+            className="mb-2"
+          />
+          
+          {!validation.allowed && validation.upgradeRequired && (
+            <UpgradePrompt
+              config={getPlanUpgradePrompt(usageSummary.plan, 'create_flipbook', planContext)}
+              currentUsage={validation.currentUsage}
+              limit={validation.limit}
+              compact={true}
+              className="mt-2"
+            />
+          )}
+        </div>
 
         <div className="space-y-4">
           {/* File Upload Area */}

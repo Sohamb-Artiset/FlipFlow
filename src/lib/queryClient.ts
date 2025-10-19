@@ -14,11 +14,11 @@ import { globalErrorHandler, shouldRetryError } from './queryUtils';
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Data is considered fresh for 5 minutes
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      // Data is considered fresh for 2 minutes for better responsiveness
+      staleTime: 2 * 60 * 1000, // 2 minutes
       
-      // Keep data in cache for 10 minutes after component unmounts
-      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+      // Keep data in cache for 15 minutes after component unmounts
+      gcTime: 15 * 60 * 1000, // 15 minutes (formerly cacheTime)
       
       // Smart retry logic based on error type
       retry: (failureCount, error) => {
@@ -39,14 +39,13 @@ export const queryClient = new QueryClient({
         return baseDelay + jitter;
       },
       
-      // Enable background refetching when window regains focus
+      // Enhanced background refetching for better data freshness
       refetchOnWindowFocus: true,
-      
-      // Refetch on reconnect after network issues
       refetchOnReconnect: true,
+      refetchOnMount: 'always', // Always refetch on mount for data consistency
       
-      // Don't refetch on mount if data is still fresh
-      refetchOnMount: true,
+      // Background refetching without loading indicators
+      notifyOnChangeProps: ['data', 'error'], // Only notify on data/error changes, not loading states
       
       // Handle errors gracefully in components
       throwOnError: false,

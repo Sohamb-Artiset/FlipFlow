@@ -9,6 +9,7 @@ This document outlines the comprehensive error handling and user feedback system
 ### 1. Enhanced Error Boundary (`EnhancedErrorBoundary.tsx`)
 
 **Features:**
+
 - Comprehensive error catching with unique error IDs
 - User-friendly error messages based on error type
 - Retry mechanism with attempt limits
@@ -17,6 +18,7 @@ This document outlines the comprehensive error handling and user feedback system
 - Context-aware error handling
 
 **Key Improvements:**
+
 - Automatic error classification (network, chunk loading, memory, etc.)
 - User-friendly error messages instead of technical jargon
 - Retry functionality with attempt tracking
@@ -26,6 +28,7 @@ This document outlines the comprehensive error handling and user feedback system
 ### 2. Retry Mechanism (`RetryMechanism.tsx`)
 
 **Features:**
+
 - Configurable retry attempts and delays
 - Exponential backoff with jitter
 - Progress tracking and history
@@ -33,6 +36,7 @@ This document outlines the comprehensive error handling and user feedback system
 - Success/failure state management
 
 **Key Capabilities:**
+
 - Smart retry logic based on error type
 - Visual progress indicators
 - Retry history tracking
@@ -42,6 +46,7 @@ This document outlines the comprehensive error handling and user feedback system
 ### 3. User Feedback System (`UserFeedback.tsx`)
 
 **Features:**
+
 - Multiple feedback types (success, error, warning, info, loading)
 - Various display variants (toast, inline, card, banner)
 - Progress indicators for long operations
@@ -49,6 +54,7 @@ This document outlines the comprehensive error handling and user feedback system
 - Dismissible notifications
 
 **Predefined Components:**
+
 - `NetworkErrorFeedback` - For connection issues
 - `LoadingFeedback` - For loading states
 - `SuccessFeedback` - For successful operations
@@ -57,6 +63,7 @@ This document outlines the comprehensive error handling and user feedback system
 ### 4. Error Handling Utilities (`errorHandling.ts`)
 
 **Features:**
+
 - Centralized error classification and handling
 - Automatic error reporting and logging
 - Context-aware error processing
@@ -64,6 +71,7 @@ This document outlines the comprehensive error handling and user feedback system
 - React hooks for easy integration
 
 **Error Classification:**
+
 - Network errors (connection, fetch failures)
 - Authentication errors (unauthorized, token issues)
 - Permission errors (access denied, forbidden)
@@ -74,26 +82,31 @@ This document outlines the comprehensive error handling and user feedback system
 ## Integration Points
 
 ### 1. Application Level (`App.tsx`)
+
 - Enhanced error boundaries for critical routes
 - Context-specific error handling for dashboard, flipbook viewer, and editor
 - Automatic error reporting for production issues
 
 ### 2. Dashboard (`Dashboard.tsx`)
+
 - Improved error handling for flipbook operations
 - Better user feedback for delete and share operations
 - Enhanced loading states and error recovery
 
 ### 3. Authentication Context (`AuthContext.tsx`)
+
 - Profile loading error handling with retry options
 - Sign out error handling with user feedback
 - Fallback mechanisms for profile creation failures
 
 ### 4. Navigation (`Navigation.tsx`)
+
 - Sign out error handling with retry functionality
 - Network error detection and user guidance
 - Loading states for authentication operations
 
 ### 5. Query Utilities (`queryUtils.ts`)
+
 - Enhanced global error handler with smart retry logic
 - Improved mutation error handling with user feedback
 - Context-aware error notifications
@@ -110,6 +123,7 @@ This document outlines the comprehensive error handling and user feedback system
 ## User Experience Improvements
 
 ### Before Implementation:
+
 - Generic error messages
 - No retry mechanisms
 - Limited error context
@@ -117,6 +131,7 @@ This document outlines the comprehensive error handling and user feedback system
 - Inconsistent error handling
 
 ### After Implementation:
+
 - User-friendly error messages
 - Smart retry mechanisms with exponential backoff
 - Rich error context and classification
@@ -128,23 +143,25 @@ This document outlines the comprehensive error handling and user feedback system
 
 ## Error Types and User Messages
 
-| Error Type | User Message | Actions Available |
-|------------|--------------|-------------------|
-| Network | "Connection problem. Please check your internet connection." | Retry, Check Connection |
-| Authentication | "Authentication failed. Please sign in again." | Sign In, Contact Support |
-| Permission | "You don't have permission to perform this action." | Contact Support |
-| Validation | "Please check your input and try again." | Review Input |
-| Server | "Server error occurred. Please try again in a moment." | Retry, Wait |
-| Client | "An application error occurred. Please refresh the page." | Refresh, Report |
+| Error Type     | User Message                                                 | Actions Available        |
+| -------------- | ------------------------------------------------------------ | ------------------------ |
+| Network        | "Connection problem. Please check your internet connection." | Retry, Check Connection  |
+| Authentication | "Authentication failed. Please sign in again."               | Sign In, Contact Support |
+| Permission     | "You don't have permission to perform this action."          | Contact Support          |
+| Validation     | "Please check your input and try again."                     | Review Input             |
+| Server         | "Server error occurred. Please try again in a moment."       | Retry, Wait              |
+| Client         | "An application error occurred. Please refresh the page."    | Refresh, Report          |
 
 ## Configuration Options
 
 ### Retry Mechanism
+
 - `maxRetries`: Maximum number of retry attempts (default: 3)
 - `retryDelay`: Base delay between retries (default: 1000ms)
 - `exponentialBackoff`: Enable exponential backoff (default: true)
 
 ### Error Reporting
+
 - Automatic error ID generation
 - Context tracking (component, operation, user)
 - Severity classification (low, medium, high, critical)

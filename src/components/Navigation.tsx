@@ -5,11 +5,13 @@ import { useState } from "react";
 import { toast } from 'sonner';
 import { InlineLoading } from "@/components/LoadingFeedback";
 import { Loader2, LogOut } from "lucide-react";
+import { useErrorHandler } from "@/lib/errorHandling";
 
 export const Navigation = () => {
   const { user, signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const navigate = useNavigate();
+  const { handleError, classifyError } = useErrorHandler();
 
   const handleSignOut = async () => {
     try {
@@ -20,46 +22,24 @@ export const Navigation = () => {
       navigate('/', { replace: true });
       
     } catch (error) {
-      console.error('Sign out failed:', error);
+      // Use centralized error handling
+      const errorReport = handleError(error, {
+        component: 'Navigation',
+        operation: 'signOut',
+      }, {
+        showToast: false, // We'll show custom toast with retry
+      });
+
+      const classification = classifyError(error);
       
-      // Enhanced error handling with retry functionality
-      if (error instanceof Error) {
-        const message = error.message.toLowerCase();
-        
-        if (message.includes('network') || message.includes('fetch')) {
-          toast.error('Network Error', {
-            description: 'Unable to sign out due to connection issues.',
-            action: {
-              label: 'Retry',
-              onClick: () => handleSignOut(),
-            },
-          });
-        } else if (message.includes('timeout')) {
-          toast.error('Request Timeout', {
-            description: 'Sign out request timed out. Please try again.',
-            action: {
-              label: 'Retry',
-              onClick: () => handleSignOut(),
-            },
-          });
-        } else {
-          toast.error('Sign Out Failed', {
-            description: 'An unexpected error occurred. Please try again.',
-            action: {
-              label: 'Retry',
-              onClick: () => handleSignOut(),
-            },
-          });
-        }
-      } else {
-        toast.error('Sign Out Failed', {
-          description: 'Unable to sign out. Please try again.',
-          action: {
-            label: 'Retry',
-            onClick: () => handleSignOut(),
-          },
-        });
-      }
+      // Show appropriate error message with retry functionality
+      toast.error('Sign Out Failed', {
+        description: classification.userMessage,
+        action: {
+          label: 'Retry',
+          onClick: () => handleSignOut(),
+        },
+      });
     } finally {
       setIsSigningOut(false);
     }

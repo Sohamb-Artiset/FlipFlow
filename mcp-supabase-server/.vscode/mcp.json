@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "supabase-mcp-server": {
+      "type": "http",
+      "url": "http://localhost:3000"
+    }
+  }
+}

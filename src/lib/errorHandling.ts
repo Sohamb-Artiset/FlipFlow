@@ -1,4 +1,6 @@
 import { toast } from 'sonner';
+import { errorNotificationManager } from './errorNotification';
+import { errorRecoveryManager, retryWithRecovery } from './errorRecovery';
 
 /**
  * Comprehensive error handling utilities for the application
@@ -22,12 +24,38 @@ export interface ErrorReport {
   severity: 'low' | 'medium' | 'high' | 'critical';
 }
 
+export interface ErrorClassification {
+  type: 'network' | 'auth' | 'validation' | 'permission' | 'server' | 'client' | 'unknown';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  userMessage: string;
+  technicalMessage: string;
+  recoverable: boolean;
+  retryable: boolean;
+  retryDelay: number;
+  maxRetries: number;
+}
+
+export interface RecoveryStrategy {
+  canRecover: (error: Error | unknown, context: ErrorContext) => boolean;
+  recover: (error: Error | unknown, context: ErrorContext) => Promise<RecoveryResult>;
+  retryDelay: number;
+  maxRetries: number;
+}
+
+export interface RecoveryResult {
+  success: boolean;
+  message: string;
+  shouldRetry: boolean;
+  data?: any;
+}
+
 /**
- * Enhanced error classification and handling
+ * Enhanced error classification and handling with recovery strategies
  */
 export class ErrorHandler {
   private static instance: ErrorHandler;
   private errorReports: ErrorReport[] = [];
+  private recoveryStrategies: Map<string, RecoveryStrategy> = new Map();
 
   static getInstance(): ErrorHandler {
     if (!ErrorHandler.instance) {
@@ -36,17 +64,72 @@ export class ErrorHandler {
     return ErrorHandler.instance;
   }
 
+  constructor() {
+    this.initializeRecoveryStrategies();
+  }
+
   /**
-   * Classify error type and severity
+   * Initialize recovery strategies for different error types
    */
-  classifyError(error: Error | unknown): {
-    type: 'network' | 'auth' | 'validation' | 'permission' | 'server' | 'client' | 'unknown';
-    severity: 'low' | 'medium' | 'high' | 'critical';
-    userMessage: string;
-    technicalMessage: string;
-    shouldRetry: boolean;
-    retryDelay: number;
-  } {
+  private initializeRecoveryStrategies(): void {
+    // Network error recovery
+    this.recoveryStrategies.set('network', {
+      canRecover: (error) => {
+        const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+        return message.includes('network') || message.includes('fetch') || message.includes('connection');
+      },
+      recover: async (error, context) => {
+        // Attempt to retry the network operation
+        return {
+          success: false,
+          message: 'Network connection restored. Please try again.',
+          shouldRetry: true,
+        };
+      },
+      retryDelay: 2000,
+      maxRetries: 3,
+    });
+
+    // Authentication error recovery
+    this.recoveryStrategies.set('auth', {
+      canRecover: (error) => {
+        const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+        return message.includes('auth') || message.includes('unauthorized') || message.includes('token');
+      },
+      recover: async (error, context) => {
+        // Clear auth state and redirect to login
+        return {
+          success: false,
+          message: 'Please sign in again to continue.',
+          shouldRetry: false,
+        };
+      },
+      retryDelay: 0,
+      maxRetries: 0,
+    });
+
+    // Server error recovery
+    this.recoveryStrategies.set('server', {
+      canRecover: (error) => {
+        const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+        return message.includes('server') || message.includes('database') || message.includes('supabase');
+      },
+      recover: async (error, context) => {
+        return {
+          success: false,
+          message: 'Server is temporarily unavailable. Please try again.',
+          shouldRetry: true,
+        };
+      },
+      retryDelay: 5000,
+      maxRetries: 2,
+    });
+  }
+
+  /**
+   * Classify error type and severity with enhanced recovery information
+   */
+  classifyError(error: Error | unknown): ErrorClassification {
     const errorMessage = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
     
     // Network errors
@@ -56,8 +139,10 @@ export class ErrorHandler {
         severity: 'medium',
         userMessage: 'Connection problem. Please check your internet connection.',
         technicalMessage: error instanceof Error ? error.message : String(error),
-        shouldRetry: true,
+        recoverable: true,
+        retryable: true,
         retryDelay: 2000,
+        maxRetries: 3,
       };
     }
 
@@ -68,8 +153,10 @@ export class ErrorHandler {
         severity: 'high',
         userMessage: 'Authentication failed. Please sign in again.',
         technicalMessage: error instanceof Error ? error.message : String(error),
-        shouldRetry: false,
+        recoverable: true,
+        retryable: false,
         retryDelay: 0,
+        maxRetries: 0,
       };
     }
 
@@ -80,8 +167,10 @@ export class ErrorHandler {
         severity: 'medium',
         userMessage: 'You don\'t have permission to perform this action.',
         technicalMessage: error instanceof Error ? error.message : String(error),
-        shouldRetry: false,
+        recoverable: false,
+        retryable: false,
         retryDelay: 0,
+        maxRetries: 0,
       };
     }
 
@@ -92,8 +181,10 @@ export class ErrorHandler {
         severity: 'low',
         userMessage: 'Please check your input and try again.',
         technicalMessage: error instanceof Error ? error.message : String(error),
-        shouldRetry: false,
+        recoverable: true,
+        retryable: false,
         retryDelay: 0,
+        maxRetries: 0,
       };
     }
 
@@ -104,8 +195,10 @@ export class ErrorHandler {
         severity: 'high',
         userMessage: 'Server error occurred. Please try again in a moment.',
         technicalMessage: error instanceof Error ? error.message : String(error),
-        shouldRetry: true,
+        recoverable: true,
+        retryable: true,
         retryDelay: 5000,
+        maxRetries: 2,
       };
     }
 
@@ -116,8 +209,10 @@ export class ErrorHandler {
         severity: 'medium',
         userMessage: 'Request timed out. Please try again.',
         technicalMessage: error instanceof Error ? error.message : String(error),
-        shouldRetry: true,
+        recoverable: true,
+        retryable: true,
         retryDelay: 3000,
+        maxRetries: 2,
       };
     }
 
@@ -128,8 +223,10 @@ export class ErrorHandler {
         severity: 'critical',
         userMessage: 'An application error occurred. Please refresh the page.',
         technicalMessage: error.message,
-        shouldRetry: false,
+        recoverable: false,
+        retryable: false,
         retryDelay: 0,
+        maxRetries: 0,
       };
     }
 
@@ -139,13 +236,39 @@ export class ErrorHandler {
       severity: 'medium',
       userMessage: 'An unexpected error occurred. Please try again.',
       technicalMessage: error instanceof Error ? error.message : String(error),
-      shouldRetry: true,
+      recoverable: true,
+      retryable: true,
       retryDelay: 2000,
+      maxRetries: 1,
     };
   }
 
   /**
-   * Handle error with appropriate user feedback and logging
+   * Attempt to recover from an error using registered recovery patterns
+   */
+  async attemptRecovery(
+    error: Error | unknown,
+    context: ErrorContext = {}
+  ): Promise<RecoveryResult> {
+    const classification = this.classifyError(error);
+    
+    if (!classification.recoverable) {
+      return {
+        success: false,
+        message: 'This error cannot be automatically recovered.',
+        shouldRetry: false,
+      };
+    }
+
+    // Use the enhanced recovery manager
+    return await errorRecoveryManager.attemptRecovery(error, context, {
+      maxRetries: classification.maxRetries,
+      baseDelay: classification.retryDelay,
+    });
+  }
+
+  /**
+   * Handle error with appropriate user feedback, logging, and recovery attempts
    */
   handleError(
     error: Error | unknown,
@@ -154,9 +277,10 @@ export class ErrorHandler {
       showToast?: boolean;
       logError?: boolean;
       reportError?: boolean;
+      attemptRecovery?: boolean;
     } = {}
   ): ErrorReport {
-    const { showToast = true, logError = true, reportError = true } = options;
+    const { showToast = true, logError = true, reportError = true, attemptRecovery = false } = options;
     const classification = this.classifyError(error);
     
     // Generate error report
@@ -189,6 +313,19 @@ export class ErrorHandler {
     // Store error report
     this.errorReports.push(errorReport);
 
+    // Attempt recovery if requested
+    if (attemptRecovery && classification.recoverable) {
+      this.attemptRecovery(error, context).then(recoveryResult => {
+        if (recoveryResult.success) {
+          toast.success('Recovery Successful', {
+            description: recoveryResult.message,
+          });
+        }
+      }).catch(recoveryError => {
+        console.error('Recovery attempt failed:', recoveryError);
+      });
+    }
+
     return errorReport;
   }
 
@@ -196,99 +333,120 @@ export class ErrorHandler {
    * Show appropriate user feedback based on error classification
    */
   private showUserFeedback(
-    classification: ReturnType<typeof this.classifyError>,
+    classification: ErrorClassification,
     errorId: string
   ) {
-    const baseToastOptions = {
-      id: errorId,
-      duration: classification.severity === 'critical' ? 10000 : 5000,
-    };
+    const duration = classification.severity === 'critical' ? 10000 : 5000;
 
     switch (classification.type) {
       case 'network':
-        toast.error('Connection Problem', {
-          description: classification.userMessage,
-          action: {
-            label: 'Retry',
-            onClick: () => {
-              // Retry will be handled by the calling component
-              console.log('Retry requested for network error');
+        errorNotificationManager.showError(
+          errorId,
+          'Connection Problem',
+          classification.userMessage,
+          {
+            action: {
+              label: 'Retry',
+              onClick: () => {
+                console.log('Retry requested for network error');
+              },
             },
-          },
-          ...baseToastOptions,
-        });
+            duration,
+          }
+        );
         break;
 
       case 'auth':
-        toast.error('Authentication Required', {
-          description: classification.userMessage,
-          action: {
-            label: 'Sign In',
-            onClick: () => {
-              window.location.href = '/auth';
+        errorNotificationManager.showError(
+          errorId,
+          'Authentication Required',
+          classification.userMessage,
+          {
+            action: {
+              label: 'Sign In',
+              onClick: () => {
+                window.location.href = '/auth';
+              },
             },
-          },
-          ...baseToastOptions,
-        });
+            duration,
+          }
+        );
         break;
 
       case 'permission':
-        toast.error('Access Denied', {
-          description: classification.userMessage,
-          action: {
-            label: 'Contact Support',
-            onClick: () => {
-              window.open('mailto:support@flipflow.com', '_blank');
+        errorNotificationManager.showError(
+          errorId,
+          'Access Denied',
+          classification.userMessage,
+          {
+            action: {
+              label: 'Contact Support',
+              onClick: () => {
+                window.open('mailto:support@flipflow.com', '_blank');
+              },
             },
-          },
-          ...baseToastOptions,
-        });
+            duration,
+          }
+        );
         break;
 
       case 'validation':
-        toast.warning('Input Error', {
-          description: classification.userMessage,
-          ...baseToastOptions,
-        });
+        errorNotificationManager.showWarning(
+          'Input Error',
+          classification.userMessage,
+          { duration }
+        );
         break;
 
       case 'server':
-        toast.error('Server Error', {
-          description: classification.userMessage,
-          action: {
-            label: 'Try Again',
-            onClick: () => {
-              console.log('Retry requested for server error');
+        errorNotificationManager.showError(
+          errorId,
+          'Server Error',
+          classification.userMessage,
+          {
+            action: {
+              label: 'Try Again',
+              onClick: () => {
+                console.log('Retry requested for server error');
+              },
             },
-          },
-          ...baseToastOptions,
-        });
+            duration,
+          }
+        );
         break;
 
       case 'client':
-        toast.error('Application Error', {
-          description: classification.userMessage,
-          action: {
-            label: 'Refresh Page',
-            onClick: () => {
-              window.location.reload();
+        errorNotificationManager.showError(
+          errorId,
+          'Application Error',
+          classification.userMessage,
+          {
+            action: {
+              label: 'Refresh Page',
+              onClick: () => {
+                window.location.reload();
+              },
             },
-          },
-          ...baseToastOptions,
-        });
+            duration,
+          }
+        );
         break;
 
       default:
-        toast.error('Unexpected Error', {
-          description: classification.userMessage,
-          action: {
-            label: 'Try Again',
-            onClick: () => {
-              console.log('Retry requested for unknown error');
+        errorNotificationManager.showError(
+          errorId,
+          'Unexpected Error',
+          classification.userMessage,
+          {
+            action: {
+              label: 'Try Again',
+              onClick: () => {
+                console.log('Retry requested for unknown error');
+              },
             },
-          },
-          ...baseToastOptions,
-        });
+            duration,
+          }
+        );
     }
   }
 
@@ -414,7 +572,9 @@ export const handleAsyncError = async <T>(
     showToast?: boolean;
     logError?: boolean;
     reportError?: boolean;
+    attemptRecovery?: boolean;
     onError?: (error: ErrorReport) => void;
+    onRecovery?: (result: RecoveryResult) => void;
   } = {}
 ): Promise<T | null> => {
   try {
@@ -422,6 +582,26 @@ export const handleAsyncError = async <T>(
   } catch (error) {
     const errorReport = errorHandler.handleError(error, context, options);
     options.onError?.(errorReport);
+
+    // Attempt recovery if requested
+    if (options.attemptRecovery) {
+      try {
+        const recoveryResult = await errorHandler.attemptRecovery(error, context);
+        options.onRecovery?.(recoveryResult);
+        
+        if (recoveryResult.success && recoveryResult.shouldRetry) {
+          // Retry the operation once after successful recovery
+          try {
+            return await operation();
+          } catch (retryError) {
+            console.warn('Operation failed after recovery attempt:', retryError);
+          }
+        }
+      } catch (recoveryError) {
+        console.error('Recovery attempt failed:', recoveryError);
+      }
+    }
+
     return null;
   }
 };
@@ -433,6 +613,7 @@ export const handleSyncError = <T>(
     showToast?: boolean;
     logError?: boolean;
     reportError?: boolean;
+    attemptRecovery?: boolean;
     onError?: (error: ErrorReport) => void;
   } = {}
 ): T | null => {
@@ -446,7 +627,7 @@ export const handleSyncError = <T>(
 };
 
 /**
- * React hook for error handling
+ * React hook for error handling with recovery capabilities
  */
 export const useErrorHandler = () => {
   const handleError = (
@@ -456,6 +637,7 @@ export const useErrorHandler = () => {
       showToast?: boolean;
       logError?: boolean;
       reportError?: boolean;
+      attemptRecovery?: boolean;
     } = {}
   ) => {
     return errorHandler.handleError(error, context, options);
@@ -463,14 +645,65 @@ export const useErrorHandler = () => {
 
   const handleAsyncOperation = async <T>(
     operation: () => Promise<T>,
-    context: ErrorContext = {}
+    context: ErrorContext = {},
+    options: {
+      attemptRecovery?: boolean;
+      maxRetries?: number;
+      onRecovery?: (result: RecoveryResult) => void;
+    } = {}
   ): Promise<T | null> => {
-    return handleAsyncError(operation, context);
+    if (options.attemptRecovery) {
+      try {
+        return await retryWithRecovery(operation, context, {
+          maxRetries: options.maxRetries || 3,
+          onSuccess: (result) => console.log('Operation succeeded after recovery'),
+          onFailure: (error, attempt) => console.warn(`Attempt ${attempt} failed:`, error),
+        });
+      } catch (error) {
+        const errorReport = errorHandler.handleError(error, context);
+        return null;
+      }
+    } else {
+      return handleAsyncError(operation, context, {
+        attemptRecovery: options.attemptRecovery,
+        onRecovery: options.onRecovery,
+      });
+    }
+  };
+
+  const attemptRecovery = async (
+    error: Error | unknown,
+    context: ErrorContext = {}
+  ): Promise<RecoveryResult> => {
+    return errorHandler.attemptRecovery(error, context);
+  };
+
+  const classifyError = (error: Error | unknown): ErrorClassification => {
+    return errorHandler.classifyError(error);
+  };
+
+  const retryWithRecoveryPattern = async <T>(
+    operation: () => Promise<T>,
+    context: ErrorContext = {},
+    options: {
+      maxRetries?: number;
+      baseDelay?: number;
+    } = {}
+  ): Promise<T | null> => {
+    try {
+      return await retryWithRecovery(operation, context, options);
+    } catch (error) {
+      handleError(error, context);
+      return null;
+    }
   };
 
   return {
     handleError,
     handleAsyncOperation,
+    attemptRecovery,
+    classifyError,
+    retryWithRecoveryPattern,
     getErrorStats: () => errorHandler.getErrorStats(),
     clearErrors: () => errorHandler.clearErrorReports(),
   };

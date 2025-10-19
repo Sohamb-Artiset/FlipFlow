@@ -10,6 +10,9 @@ import { Upload, X, Check, ArrowRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { uploadAsset } from '@/lib/storage';
 import { Tables } from '@/integrations/supabase/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { planManager, getPlanUpgradePrompt, PlanContext } from '@/lib/planManager';
+import { UpgradePrompt } from '@/components/UpgradePrompt';
 
 type Flipbook = Tables<'flipbooks'>;
 
@@ -18,14 +21,17 @@ interface FlipbookCustomizationProps {
   onUpdate: (updates: Partial<Flipbook>) => void;
   onSave: (updates: Partial<Flipbook>) => Promise<void>;
   isSaving?: boolean;
+  flipbookCount?: number;
 }
 
 export const FlipbookCustomization = ({ 
   flipbook, 
   onUpdate, 
   onSave, 
-  isSaving = false 
+  isSaving = false,
+  flipbookCount = 0
 }: FlipbookCustomizationProps) => {
+  const { user, profile } = useAuth();
   const [title, setTitle] = useState(flipbook.title);
   const [description, setDescription] = useState(flipbook.description || '');
   const [backgroundColor, setBackgroundColor] = useState(flipbook.background_color || '#ffffff');
@@ -37,6 +43,16 @@ export const FlipbookCustomization = ({
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Create plan context for validation
+  const planContext: PlanContext = {
+    userId: user?.id,
+    currentFlipbookCount: flipbookCount,
+    profile: profile,
+  };
+
+  // Check if user can access custom branding (logo upload)
+  const brandingValidation = planManager.validateAction('custom_branding', planContext);
 
   const handleTitleChange = (value: string) => {
     setTitle(value);
@@ -65,6 +81,21 @@ export const FlipbookCustomization = ({
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Check plan permissions for custom branding
+    if (!brandingValidation.allowed) {
+      const upgradePrompt = getPlanUpgradePrompt(
+        planManager.getUsageSummary(planContext).plan, 
+        'custom_branding', 
+        planContext
+      );
+      toast({
+        title: upgradePrompt.title,
+        description: upgradePrompt.message,
+        variant: 'destructive',
+      });
+      return;
+    }
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -220,9 +251,18 @@ export const FlipbookCustomization = ({
           </div>
 
           <div className="space-y-2">
-            <Label>Logo</Label>
+            <Label>Logo (Custom Branding)</Label>
             <div className="space-y-3">
-              {logoUrl ? (
+              {!brandingValidation.allowed ? (
+                <UpgradePrompt
+                  config={getPlanUpgradePrompt(
+                    planManager.getUsageSummary(planContext).plan, 
+                    'custom_branding', 
+                    planContext
+                  )}
+                  compact={false}
+                />
+              ) : logoUrl ? (
                 <div className="flex items-center space-x-3">
                   <img
                     src={logoUrl}

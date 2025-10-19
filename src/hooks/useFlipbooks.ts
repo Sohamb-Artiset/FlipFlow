@@ -25,16 +25,7 @@ export const useFlipbooks = (userId: string | undefined) => {
 
       console.log('Fetching flipbooks for user:', userId);
 
-      // Get current session to ensure we're authenticated
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        console.error('No valid session:', sessionError);
-        throw new Error('Authentication required. Please sign in again.');
-      }
-
-      console.log('Session valid, fetching flipbooks...');
-
+      // Trust AuthContext for authentication state - no redundant session validation
       const { data, error } = await supabase
         .from('flipbooks')
         .select('*')
@@ -50,10 +41,12 @@ export const useFlipbooks = (userId: string | undefined) => {
       return data || [];
     },
     enabled: !!userId, // Only run query when userId is available
-    staleTime: 30000, // 30 seconds
-    gcTime: 300000, // 5 minutes
-    retry: 2,
-    retryDelay: 1000,
+    ...queryOptions.flipbooks, // Use optimized query options with exponential backoff
+    // Enhanced background refetching for stale data without loading indicators
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: 5 * 60 * 1000, // Background refetch every 5 minutes
+    refetchIntervalInBackground: false, // Only refetch when tab is active
     throwOnError: false, // Handle errors gracefully in components
   });
 };
@@ -83,6 +76,9 @@ export const useFlipbook = (flipbookId: string | undefined) => {
     },
     enabled: !!flipbookId,
     ...queryOptions.flipbooks,
+    // Background refetching for individual flipbooks
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     throwOnError: false,
   });
 };
