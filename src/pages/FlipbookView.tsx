@@ -1,90 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { FlipbookViewer } from '@/components/FlipbookViewer';
 import { PDFProcessor } from '@/lib/pdfProcessor';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useErrorHandler } from '@/lib/errorHandling';
 import { ErrorDisplay, ErrorEmptyState } from '@/components/ErrorDisplay';
-import { FlipbookErrorDisplay } from '@/components/FlipbookErrorDisplay';
-import { classifyFlipbookError, retryFlipbookOperation } from '@/lib/flipbookErrorRecovery';
-import { FlipbookErrorHandler } from '@/lib/flipbookErrorHandlers';
-import { LoadingFeedback, OperationLoading, FlipbookLoading, AnimatedProgress, CancellableLoading } from '@/components/LoadingFeedback';
-import { Share2, Eye, Calendar, Loader2, FileText, Download, Cog, AlertTriangle, Clock, Bug } from 'lucide-react';
+import { LoadingFeedback, OperationLoading } from '@/components/LoadingFeedback';
+import { Share2, Eye, Calendar } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
-import { useAuth } from '@/contexts/AuthContext';
-import { useFlipbooks } from '@/hooks/useFlipbooks';
-import { 
-  flipbookLogger, 
-  logFlipbookOperation, 
-  logFlipbookError, 
-  startFlipbookTiming, 
-  endFlipbookTiming,
-  type FlipbookLoadingPhase 
-} from '@/lib/flipbookLogger';
-import {
-  flipbookPerformanceMonitor,
-  startFlipbookOperation,
-  endFlipbookOperation,
-  trackFlipbookProgress,
-  updateFlipbookProgress,
-  completeFlipbookProgress
-} from '@/lib/flipbookPerformance';
-import { 
-  startFlipbookProfiling, 
-  addFlipbookProfilingPhase, 
-  endFlipbookProfiling 
-} from '@/lib/flipbookProfiler';
-import { useFlipbookDebug, useFlipbookPDFDebug, useFlipbookNetworkDebug } from '@/hooks/useFlipbookDebug';
-import { FlipbookDebugPanel } from '@/components/FlipbookDebugPanel';
-import { isDevelopment } from '@/lib/debugUtils';
 
 type Flipbook = Tables<'flipbooks'>;
 
-type DetailedLoadingState = 
-  | 'idle'
-  | 'fetching_metadata'
-  | 'tracking_view'
-  | 'downloading_pdf'
-  | 'processing_pdf'
-  | 'rendering'
-  | 'complete'
-  | 'error'
-  | 'timeout';
-
-interface LoadingProgress {
-  phase: DetailedLoadingState;
-  percentage: number;
-  message: string;
-  startTime: number;
-  estimatedDuration?: number;
-  timeElapsed: number;
-}
-
-// Timeout configurations for different phases (in milliseconds)
-const PHASE_TIMEOUTS = {
-  fetching_metadata: 10000, // 10 seconds for metadata
-  tracking_view: 5000,      // 5 seconds for view tracking
-  downloading_pdf: 30000,   // 30 seconds for PDF download
-  processing_pdf: 30000,    // 30 seconds for PDF processing
-  rendering: 10000,         // 10 seconds for rendering
-} as const;
-
 export default function FlipbookView() {
   const { id } = useParams<{ id: string }>();
-  const { handleError } = useErrorHandler();
-  const { user } = useAuth();
-  const { data: flipbooks = [] } = useFlipbooks(user?.id);
   const [flipbook, setFlipbook] = useState<Flipbook | null>(null);
   const [pdfDocument, setPdfDocument] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [flipbookError, setFlipbookError] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<FlipbookLoadingPhase>('initialization');
   const [performanceTimingId, setPerformanceTimingId] = useState<string | null>(null);
@@ -260,24 +195,7 @@ export default function FlipbookView() {
   const isSlowConnection = loadingProgress.timeElapsed > 15000 && loadingProgress.percentage < 50;
 
   useEffect(() => {
-    if (!id) {
-      flipbookLogger.warn('FlipbookView mounted without flipbook ID', {
-        component: 'FlipbookView',
-        phase: 'initialization',
-      });
-      return;
-    }
-    
-    // Log component initialization
-    flipbookLogger.info('FlipbookView component initialized', {
-      flipbookId: id,
-      userId: user?.id,
-      component: 'FlipbookView',
-      phase: 'initialization',
-    }, {
-      userAgent: navigator.userAgent,
-      timestamp: new Date().toISOString(),
-    });
+    if (!id) return;
     
     fetchFlipbook();
   }, [id]);
@@ -302,161 +220,36 @@ export default function FlipbookView() {
   const fetchFlipbook = async () => {
     if (!id) return;
 
-    const timingId = startFlipbookTiming('fetchFlipbook', id, 'fetching_metadata');
-    const performanceId = startFlipbookOperation('fetchFlipbook', 'fetching_metadata', id);
-    setPerformanceTimingId(performanceId);
-    
-    // Start profiling if in debug mode
-    if (debugState.isDebugMode) {
-      startFlipbookProfiling('fetchFlipbook');
-      debugActions.logDebugStep('Starting flipbook fetch operation', { flipbookId: id });
-    }
-    
-    // Use enhanced retry mechanism for fetching flipbook with debug integration
-    const result = await networkDebug.simulateNetworkOperation(
-      async () => {
-        return await retryFlipbookOperation(
-          async () => {
-            setIsLoading(true);
-            setError(null);
-            setFlipbookError(null);
-            setCurrentPhase('fetching_metadata');
-            updateLoadingState('fetching_metadata', 10, 'Loading flipbook details...', 3000);
+    try {
+      setIsLoading(true);
+      setError(null);
 
-            if (debugState.isDebugMode) {
-              addFlipbookProfilingPhase('fetchFlipbook', 'fetching_metadata', {
-                flipbookId: id,
-                userId: user?.id,
-              });
-            }
+      // Fetch flipbook data
+      const { data, error: fetchError } = await supabase
+        .from('flipbooks')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-            flipbookLogger.logPhaseTransition(currentPhase, 'fetching_metadata', {
-              flipbookId: id,
-              userId: user?.id,
-              component: 'FlipbookView',
-            });
-
-            logFlipbookOperation('Starting flipbook fetch', id, 'fetching_metadata');
-            networkDebug.logNetworkStep('Initiating Supabase query', { table: 'flipbooks', id });
-
-            // Fetch flipbook data
-            const { data, error: fetchError } = await supabase
-              .from('flipbooks')
-              .select('*')
-              .eq('id', id)
-              .single();
-
-            if (fetchError) {
-              logFlipbookError(
-                new Error(`Supabase fetch error: ${fetchError.message}`),
-                id,
-                'fetching_metadata',
-                'fetchFlipbook',
-                { supabaseError: fetchError }
-              );
-              throw new Error('Flipbook not found');
-            }
-
-            updateLoadingState('fetching_metadata', 30, 'Flipbook details loaded successfully', 3000);
-
-            logFlipbookOperation('Flipbook data fetched successfully', id, 'fetching_metadata', {
-              flipbookTitle: data.title,
-              isPublic: data.is_public,
-              hasPdfUrl: !!data.pdf_url,
-              pdfUrl: data.pdf_url,
-            });
-
-            debugActions.logDebugStep('Flipbook metadata loaded', {
-              title: data.title,
-              isPublic: data.is_public,
-              hasPdfUrl: !!data.pdf_url,
-            });
-
-            // Check if flipbook is explicitly set to false (private)
-            // Note: is_public can be true, false, or null (defaults to true)
-            if (data.is_public === false) {
-              logFlipbookError(
-                new Error('Attempted to access private flipbook'),
-                id,
-                'fetching_metadata',
-                'fetchFlipbook',
-                { isPublic: data.is_public }
-              );
-              throw new Error('This flipbook is private');
-            }
-
-            setFlipbook(data);
-
-            // Track view
-            trackView(data.id);
-
-            const fetchDuration = endFlipbookTiming(timingId, 'fetchFlipbook', id, 'fetching_metadata', {
-              success: true,
-              flipbookTitle: data.title,
-            });
-
-            endFlipbookOperation(performanceId, {
-              success: true,
-              flipbookTitle: data.title,
-              duration: fetchDuration,
-            });
-
-            if (debugState.isDebugMode) {
-              const profile = endFlipbookProfiling('fetchFlipbook');
-              debugActions.logDebugStep('Flipbook fetch profiling completed', {
-                profile: profile ? {
-                  totalDuration: profile.totalDuration,
-                  phases: profile.phases.length,
-                  bottlenecks: profile.bottlenecks.length,
-                } : null,
-              });
-            }
-
-            return data;
-          },
-          {
-            flipbookId: id,
-            operation: 'fetchFlipbook',
-            userId: user?.id
-          },
-          {
-            maxRetries: 2,
-            baseDelay: 1000,
-            exponentialBackoff: true
-          }
-        );
-      },
-      'fetchFlipbook'
-    );
-
-    if (!result.success && result.error) {
-      // Set enhanced error for display
-      setFlipbookError(result.error);
-      setError(result.error.userMessage);
-      setCurrentPhase('error');
-      updateLoadingState('error', 0, `Error: ${result.error.userMessage}`);
-      
-      const fetchDuration = endFlipbookTiming(timingId, 'fetchFlipbook', id, 'fetching_metadata', {
-        success: false,
-        error: result.error.message,
-      });
-
-      endFlipbookOperation(performanceId, {
-        success: false,
-        error: result.error.message,
-        duration: fetchDuration,
-      });
-
-      if (debugState.isDebugMode) {
-        endFlipbookProfiling('fetchFlipbook');
-        debugActions.logDebugStep('Flipbook fetch failed', {
-          error: result.error.message,
-          errorType: result.error.type,
-        });
+      if (fetchError) {
+        throw new Error('Flipbook not found');
       }
-    }
 
-    setIsLoading(false);
+      if (!data.is_public) {
+        throw new Error('This flipbook is private');
+      }
+
+      setFlipbook(data);
+
+      // Track view
+      trackView(data.id);
+
+    } catch (err: any) {
+      console.error('Error fetching flipbook:', err);
+      setError(err.message || 'Failed to load flipbook');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const trackView = async (flipbookId: string) => {
@@ -554,207 +347,18 @@ export default function FlipbookView() {
     try {
       setIsProcessing(true);
       setError(null);
-      setFlipbookError(null);
-      setCurrentPhase('downloading_pdf');
-      updateLoadingState('downloading_pdf', 75, 'Starting PDF download...', 8000);
 
-      if (debugState.isDebugMode) {
-        addFlipbookProfilingPhase('loadPDF', 'downloading_pdf', {
-          pdfUrl: flipbook.pdf_url,
-        });
-      }
-
-      flipbookLogger.logPhaseTransition('tracking_view', 'downloading_pdf', {
-        flipbookId: flipbook.id,
-        userId: user?.id,
-        component: 'FlipbookView',
-      });
-
-      updateFlipbookProgress(progressId, 1, 'Starting PDF download...', 0);
-
-      logFlipbookOperation('Starting PDF download and processing', flipbook.id, 'downloading_pdf', {
-        pdfUrl: flipbook.pdf_url,
-        pdfSize: 'unknown', // Will be updated when we get the actual size
-      });
-
-      pdfDebug.logPDFStep('Initializing PDF processor');
-
-      // Use debug-aware PDF processing
-      const document = await pdfDebug.measurePDFOperation(async () => {
-        const processor = new PDFProcessor();
-        
-        updateFlipbookProgress(progressId, 2, 'Downloading PDF file...');
-        updateLoadingState('downloading_pdf', 80, 'Downloading PDF file...', 6000);
-        
-        pdfDebug.logPDFStep('Starting PDF download', { url: flipbook.pdf_url });
-        
-        // Simulate PDF delay if enabled
-        await pdfDebug.simulatePDFDelay('download');
-        
-        // Check for simulated PDF errors
-        if (pdfDebug.checkForPDFError()) {
-          throw new Error('Simulated PDF processing error');
-        }
-        
-        // Transition to processing phase
-        setCurrentPhase('processing_pdf');
-        updateLoadingState('processing_pdf', 85, 'Processing PDF document...', 4000);
-        flipbookLogger.logPhaseTransition('downloading_pdf', 'processing_pdf', {
-          flipbookId: flipbook.id,
-          component: 'FlipbookView',
-        });
-
-        if (debugState.isDebugMode) {
-          addFlipbookProfilingPhase('loadPDF', 'processing_pdf', {
-            pdfUrl: flipbook.pdf_url,
-          });
-        }
-
-        updateFlipbookProgress(progressId, 3, 'Processing PDF document...');
-        pdfDebug.logPDFStep('Processing PDF document');
-
-        const document = await processor.loadPDF(flipbook.pdf_url);
-        
-        pdfDebug.logPDFStep('PDF processing completed', {
-          pageCount: document?.totalPages,
-        });
-        
-        // Clean up processor
-        processor.destroy();
-        
-        return document;
-      }, 'PDF Loading and Processing');
+      const processor = new PDFProcessor();
+      const document = await processor.loadPDF(flipbook.pdf_url);
       
-      logFlipbookOperation('PDF processing completed successfully', flipbook.id, 'processing_pdf', {
-        pdfUrl: flipbook.pdf_url,
-        pageCount: document?.totalPages || 'unknown',
-      });
-
       setPdfDocument(document);
       
-      // Transition to rendering phase
-      setCurrentPhase('rendering');
-      updateLoadingState('rendering', 95, 'Rendering flipbook viewer...', 2000);
-      flipbookLogger.logPhaseTransition('processing_pdf', 'rendering', {
-        flipbookId: flipbook.id,
-        component: 'FlipbookView',
-      });
-
-      if (debugState.isDebugMode) {
-        addFlipbookProfilingPhase('loadPDF', 'rendering', {
-          pageCount: document?.totalPages,
-        });
-      }
-
-      updateFlipbookProgress(progressId, 4, 'Rendering flipbook viewer...');
-      pdfDebug.logPDFStep('Rendering flipbook viewer');
-
-      // Mark as complete
-      setCurrentPhase('complete');
-      updateLoadingState('complete', 100, 'Flipbook ready!');
-      flipbookLogger.logPhaseTransition('rendering', 'complete', {
-        flipbookId: flipbook.id,
-        component: 'FlipbookView',
-      });
-
-      const loadDuration = endFlipbookTiming(timingId, 'loadPDF', flipbook.id, 'complete', {
-        success: true,
-        pageCount: document?.totalPages,
-      });
-
-      endFlipbookOperation(performanceId, {
-        success: true,
-        pageCount: document?.totalPages,
-        duration: loadDuration,
-      });
-
-      completeFlipbookProgress(progressId);
-
-      if (debugState.isDebugMode) {
-        const profile = endFlipbookProfiling('loadPDF');
-        debugActions.logDebugStep('PDF loading profiling completed', {
-          profile: profile ? {
-            totalDuration: profile.totalDuration,
-            phases: profile.phases.length,
-            bottlenecks: profile.bottlenecks.length,
-            optimizationSuggestions: profile.optimizationSuggestions.length,
-          } : null,
-        });
-      }
-
-      // Check if this operation was slower than benchmark
-      const benchmark = flipbookPerformanceMonitor.getBenchmark('loadPDF');
-      if (benchmark && flipbookPerformanceMonitor.isSlowerThanBenchmark('loadPDF', loadDuration)) {
-        flipbookLogger.warn('PDF loading slower than benchmark', {
-          flipbookId: flipbook.id,
-          component: 'FlipbookView',
-          phase: 'complete',
-        }, {
-          actualDuration: loadDuration,
-          benchmarkAverage: benchmark.averageDuration,
-          slowdownFactor: loadDuration / benchmark.averageDuration,
-        });
-
-        if (debugState.isDebugMode) {
-          debugActions.logDebugStep('Performance warning: slower than benchmark', {
-            actualDuration: loadDuration,
-            benchmarkAverage: benchmark.averageDuration,
-            slowdownFactor: loadDuration / benchmark.averageDuration,
-          });
-        }
-      }
+      // Clean up processor
+      processor.destroy();
 
     } catch (err: any) {
-      logFlipbookError(
-        err,
-        flipbook.id,
-        'processing_pdf',
-        'loadPDF',
-        { 
-          pdfUrl: flipbook.pdf_url,
-          errorType: err.name,
-          errorMessage: err.message,
-        }
-      );
-
-      if (debugState.isDebugMode) {
-        debugActions.logDebugStep('PDF loading failed', {
-          error: err.message,
-          errorType: err.name,
-          stack: err.stack,
-        });
-      }
-
-      // Use enhanced error classification and handling
-      const classifiedError = classifyFlipbookError(err, {
-        flipbookId: flipbook.id,
-        pdfUrl: flipbook.pdf_url,
-        operation: 'loadPDF'
-      });
-
-      setFlipbookError(classifiedError);
-      setError(classifiedError.userMessage);
-      setCurrentPhase('error');
-      updateLoadingState('error', 0, `Error: ${classifiedError.userMessage}`);
-
-      const loadDuration = endFlipbookTiming(timingId, 'loadPDF', flipbook.id, 'error', {
-        success: false,
-        error: err.message,
-        errorType: err.name,
-      });
-
-      endFlipbookOperation(performanceId, {
-        success: false,
-        error: err.message,
-        errorType: err.name,
-        duration: loadDuration,
-      });
-
-      completeFlipbookProgress(progressId);
-
-      if (debugState.isDebugMode) {
-        endFlipbookProfiling('loadPDF');
-      }
+      console.error('Error loading PDF:', err);
+      setError(err.message || 'Failed to load PDF');
     } finally {
       setIsProcessing(false);
     }
@@ -918,14 +522,14 @@ export default function FlipbookView() {
     );
   }
 
-  if (error) {
+  if (queryError) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <ErrorDisplay
-          error={new Error(error)}
+          error={queryError as Error}
           variant="card"
           title="Unable to Load Flipbook"
-          onRetry={() => fetchFlipbook()}
+          onRetry={() => refetch()}
           isRetrying={isLoading}
           showDetails={false}
           className="w-full max-w-md"
@@ -936,6 +540,21 @@ export default function FlipbookView() {
 
   if (!flipbook) {
     return <Navigate to="/" replace />;
+  }
+
+  // Check if flipbook is public
+  if (!flipbook.is_public) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <ErrorDisplay
+          error={new Error('This flipbook is private')}
+          variant="card"
+          title="Private Flipbook"
+          showDetails={false}
+          className="w-full max-w-md"
+        />
+      </div>
+    );
   }
 
   return (
@@ -1102,30 +721,7 @@ export default function FlipbookView() {
         )}
 
         {/* Error State */}
-        {flipbookError ? (
-          <FlipbookErrorDisplay
-            error={flipbookError}
-            variant="card"
-            onRetry={() => {
-              setError(null);
-              setFlipbookError(null);
-              if (flipbook?.pdf_url) {
-                loadPDF();
-              } else {
-                fetchFlipbook();
-              }
-            }}
-            onGoBack={() => window.history.back()}
-            onDownloadOriginal={() => {
-              if (flipbook?.pdf_url) {
-                window.open(flipbook.pdf_url, '_blank');
-              }
-            }}
-            isRetrying={isLoading || isProcessing}
-            showDetails={process.env.NODE_ENV === 'development'}
-            className="mb-8"
-          />
-        ) : error && (
+        {error && (
           <ErrorDisplay
             error={new Error(error)}
             variant="alert"
