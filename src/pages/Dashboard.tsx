@@ -76,6 +76,17 @@ export default function Dashboard() {
     }
   }, [authIsLoading, user, navigate]);
 
+  // Timeout fallback: if loading hangs > 10s, show error UI instead of skeletons
+  // CRITICAL: This must be called BEFORE any early returns to follow React hooks rules
+  useEffect(() => {
+    if (isLoading && user) {
+      const timer = setTimeout(() => setLoadTimedOut(true), 10000);
+      return () => clearTimeout(timer);
+    }
+    // Reset timeout flag when not loading
+    setLoadTimedOut(false);
+  }, [isLoading, user]);
+
   // Show initial loading state when auth is loading and no user yet
   if (isLoading && !user) {
     return (
@@ -97,16 +108,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  // Timeout fallback: if loading hangs > 10s, show error UI instead of skeletons
-  useEffect(() => {
-    if (isLoading && user) {
-      const timer = setTimeout(() => setLoadTimedOut(true), 10000);
-      return () => clearTimeout(timer);
-    }
-    // Reset timeout flag when not loading
-    setLoadTimedOut(false);
-  }, [isLoading, user]);
 
 
 
