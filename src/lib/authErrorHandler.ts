@@ -310,12 +310,12 @@ class AuthErrorHandler {
       case 'network':
         actions.push({
           label: 'Retry',
-          action: () => window.location.reload(),
+          action: () => { window.location.reload(); },
           priority: 1,
         });
         actions.push({
           label: 'Check Connection',
-          action: () => window.open('https://www.google.com', '_blank'),
+          action: () => { window.open('https://www.google.com', '_blank'); },
           priority: 2,
         });
         break;
@@ -323,7 +323,7 @@ class AuthErrorHandler {
       case 'session':
         actions.push({
           label: 'Sign In Again',
-          action: () => window.location.href = '/auth',
+          action: () => { window.location.href = '/auth'; },
           priority: 1,
         });
         break;
@@ -360,7 +360,7 @@ class AuthErrorHandler {
       case 'validation':
         actions.push({
           label: 'Retry Authentication',
-          action: () => window.location.href = '/auth',
+          action: () => { window.location.href = '/auth'; },
           priority: 1,
         });
         break;

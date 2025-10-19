@@ -72,7 +72,7 @@ class SecureRedirectManager {
       const pathname = url.pathname;
       
       // Check if path is in safe list
-      if (REDIRECT_CONFIG.SAFE_PATHS.includes(pathname)) {
+      if (REDIRECT_CONFIG.SAFE_PATHS.includes(pathname as any)) {
         return true;
       }
       

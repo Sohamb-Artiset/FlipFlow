@@ -143,7 +143,7 @@ export const FlipbookAnalytics = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <LoadingFeedback type="inline" message="Loading analytics..." />
+          <LoadingFeedback type="spinner" message="Loading analytics..." />
         </CardContent>
       </Card>
     );
@@ -332,7 +332,7 @@ export const DashboardAnalytics = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <LoadingFeedback type="inline" message="Loading analytics..." />
+          <LoadingFeedback type="spinner" message="Loading analytics..." />
         </CardContent>
       </Card>
     );

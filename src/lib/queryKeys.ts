@@ -54,7 +54,9 @@ export const getFlipbookListInvalidationKeys = (userId: string) => [
  * Only invalidates the specific flipbook, not all flipbooks
  */
 export const getFlipbookDetailInvalidationKeys = (flipbookId: string, userId?: string) => {
-  const keys = [queryKeys.flipbooks.detail(flipbookId)];
+  const keys: (readonly string[] | readonly [string, string] | readonly [string, string, string] | readonly [string, string, { userId: string }])[] = [
+    queryKeys.flipbooks.detail(flipbookId)
+  ];
   
   // Also invalidate the user's flipbook list if userId is provided
   if (userId) {

@@ -161,13 +161,15 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
 
       // Create flipbook record in database with optimistic updates
       await createFlipbookMutation.mutateAsync({
-        id: flipbookId,
         user_id: user.id,
         title: title || selectedFile.name.replace('.pdf', ''),
         description: description || null,
         pdf_url: pdfUrl,
         is_public: true,
         show_covers: true,
+        background_color: null,
+        cover_image_url: null,
+        logo_url: null,
       });
 
       setUploadProgress(100);
@@ -260,7 +262,7 @@ export const FlipbookUpload = ({ onUploadComplete, flipbookCount }: FlipbookUplo
           
           <UsageIndicator
             current={usageSummary.currentFlipbooks}
-            limit={usageSummary.maxFlipbooks === 'Unlimited' ? 'unlimited' : usageSummary.maxFlipbooks}
+            limit={typeof usageSummary.maxFlipbooks === 'number' ? usageSummary.maxFlipbooks : 'unlimited'}
             label="Flipbooks"
             className="mb-2"
           />

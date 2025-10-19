@@ -1,5 +1,9 @@
-import { ErrorClassification, ErrorContext, RecoveryResult } from './errorHandling';
+import { ErrorClassification, RecoveryResult } from './errorHandling';
+import type { ErrorContext } from './errorHandling';
 import { errorNotificationManager } from './errorNotification';
+
+// Re-export ErrorContext so other files can import it from here
+export type { ErrorContext };
 
 /**
  * Error recovery patterns with exponential backoff and user guidance

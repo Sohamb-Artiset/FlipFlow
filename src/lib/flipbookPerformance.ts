@@ -4,6 +4,7 @@
  */
 
 import { flipbookLogger } from './flipbookLogger';
+import type { FlipbookLoadingPhase } from './flipbookLogger';
 
 export interface PerformanceMetric {
   id: string;
@@ -203,7 +204,7 @@ class FlipbookPerformanceMonitor {
 
     flipbookLogger.debug(`Started timing: ${operation}`, {
       component: 'FlipbookPerformanceMonitor',
-      phase,
+      phase: phase as FlipbookLoadingPhase,
       flipbookId,
     }, {
       timingId: id,
@@ -248,7 +249,7 @@ class FlipbookPerformanceMonitor {
 
     flipbookLogger.info(`Completed timing: ${metric.operation}`, {
       component: 'FlipbookPerformanceMonitor',
-      phase: metric.phase,
+      phase: (metric.phase as FlipbookLoadingPhase) || 'complete',
       flipbookId: metric.flipbookId,
     }, {
       timingId,
@@ -706,6 +707,9 @@ class FlipbookPerformanceMonitor {
         fastestOperation: null,
         activeProgress: this.progressTrackers.size,
         benchmarks: this.getBenchmarks(),
+        loadingMetrics: [],
+        connectionMetrics: [],
+        failureAnalysis: this.getFailureAnalysis(),
       };
     }
 

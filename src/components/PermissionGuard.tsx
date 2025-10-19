@@ -135,7 +135,7 @@ export const PermissionErrorDisplay: React.FC<PermissionErrorDisplayProps> = ({
 interface InlinePermissionAlertProps {
   permission: any;
   errorMessage: string;
-  variant?: 'default' | 'destructive' | 'warning';
+  variant?: 'default' | 'destructive';
   className?: string;
 }
 

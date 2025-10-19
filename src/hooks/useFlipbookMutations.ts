@@ -34,17 +34,17 @@ export const useDeleteFlipbook = (userId: string, planContext?: PlanContext) => 
     onMutate: async (flipbookId: string) => {
       // Cancel outgoing refetches for flipbook lists
       await queryClient.cancelQueries({ 
-        queryKey: queryKeys.flipbooks.list(userId) 
+        queryKey: queryKeys.flipbooks.byUser(userId) 
       });
 
       // Snapshot the previous flipbooks list
       const previousFlipbooks = queryClient.getQueryData<Flipbook[]>(
-        queryKeys.flipbooks.list(userId)
+        queryKeys.flipbooks.byUser(userId)
       );
 
       // Optimistically remove the flipbook from the list
       queryClient.setQueryData(
-        queryKeys.flipbooks.list(userId),
+        queryKeys.flipbooks.byUser(userId),
         (old: Flipbook[] | undefined) => 
           old ? old.filter(flipbook => flipbook.id !== flipbookId) : []
       );
@@ -55,7 +55,7 @@ export const useDeleteFlipbook = (userId: string, planContext?: PlanContext) => 
       // Rollback on error - restore the previous flipbooks list
       if (context?.previousFlipbooks) {
         queryClient.setQueryData(
-          queryKeys.flipbooks.list(userId),
+          queryKeys.flipbooks.byUser(userId),
           context.previousFlipbooks
         );
       }
@@ -101,12 +101,12 @@ export const useCreateFlipbook = (userId: string, planContext?: PlanContext) => 
     onMutate: async (newFlipbook) => {
       // Cancel outgoing refetches for flipbook lists
       await queryClient.cancelQueries({ 
-        queryKey: queryKeys.flipbooks.list(userId) 
+        queryKey: queryKeys.flipbooks.byUser(userId) 
       });
 
       // Snapshot the previous flipbooks list
       const previousFlipbooks = queryClient.getQueryData<Flipbook[]>(
-        queryKeys.flipbooks.list(userId)
+        queryKeys.flipbooks.byUser(userId)
       );
 
       // Create optimistic flipbook with temporary data
@@ -120,7 +120,7 @@ export const useCreateFlipbook = (userId: string, planContext?: PlanContext) => 
 
       // Optimistically add the new flipbook to the list
       queryClient.setQueryData(
-        queryKeys.flipbooks.list(userId),
+        queryKeys.flipbooks.byUser(userId),
         (old: Flipbook[] | undefined) => 
           old ? [optimisticFlipbook, ...old] : [optimisticFlipbook]
       );
@@ -131,15 +131,15 @@ export const useCreateFlipbook = (userId: string, planContext?: PlanContext) => 
       // Rollback on error - restore the previous flipbooks list
       if (context?.previousFlipbooks) {
         queryClient.setQueryData(
-          queryKeys.flipbooks.list(userId),
+          queryKeys.flipbooks.byUser(userId),
           context.previousFlipbooks
         );
       }
     },
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, context: { previousFlipbooks?: Flipbook[]; optimisticFlipbook: Flipbook } | undefined) => {
       // Replace the optimistic entry with the real data
       queryClient.setQueryData(
-        queryKeys.flipbooks.list(userId),
+        queryKeys.flipbooks.byUser(userId),
         (old: Flipbook[] | undefined) => {
           if (!old || !context?.optimisticFlipbook) return old;
           return old.map(flipbook => 

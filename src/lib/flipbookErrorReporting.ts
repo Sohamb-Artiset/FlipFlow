@@ -236,8 +236,8 @@ class FlipbookErrorReporter {
     // Log the error report
     flipbookLogger.error('Error reported', {
       component: 'ErrorReporter',
-      errorId,
     }, {
+      errorId,
       errorType: error.type,
       severity: error.severity,
       fingerprint,

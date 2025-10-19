@@ -1329,7 +1329,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async (retryCount = 0) => {
-    const currentUserId = user?.id;
+    const signOutUserId = user?.id;
     const maxRetries = 3;
     
     // Initialize sign-out state tracking

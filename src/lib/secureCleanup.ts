@@ -138,7 +138,7 @@ class StorageCleanup {
       );
       
       authKeys.forEach(key => {
-        if (!CLEANUP_CONFIG.LOCAL_STORAGE_KEYS.includes(key)) {
+        if (!CLEANUP_CONFIG.LOCAL_STORAGE_KEYS.includes(key as any)) {
           localStorage.removeItem(key);
           result.clearedItems.push(`localStorage:${key} (auto-detected)`);
         }

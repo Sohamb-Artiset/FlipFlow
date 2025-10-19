@@ -54,7 +54,7 @@ export class NetworkErrorHandler {
     logFlipbookOperation(
       'Handling network error',
       context.flipbookId || 'unknown',
-      'error_handling',
+      'error',
       { online: this.isOnline(), errorMessage: error.message }
     );
 
@@ -147,7 +147,7 @@ export class CORSErrorHandler {
     logFlipbookOperation(
       'Handling CORS error',
       context.flipbookId || 'unknown',
-      'error_handling',
+      'error',
       { originalUrl, errorMessage: error.message }
     );
 
@@ -165,7 +165,7 @@ export class CORSErrorHandler {
         logFlipbookOperation(
           'CORS proxy fallback available',
           context.flipbookId || 'unknown',
-          'error_handling',
+          'error',
           { proxyUrl, success: true }
         );
 
@@ -185,7 +185,7 @@ export class CORSErrorHandler {
       logFlipbookError(
         proxyError as Error,
         context.flipbookId || 'unknown',
-        'error_handling',
+        'error',
         'corsProxyFallback',
         { proxyUrl, originalUrl }
       );
@@ -324,7 +324,7 @@ export class PDFValidationHandler {
     logFlipbookOperation(
       'Handling PDF validation error',
       context.flipbookId || 'unknown',
-      'error_handling',
+      'error',
       { pdfUrl, errorMessage: error.message }
     );
 
@@ -440,7 +440,7 @@ export class AuthenticationErrorHandler {
     logFlipbookOperation(
       'Handling authentication error',
       context.flipbookId || 'unknown',
-      'error_handling',
+      'error',
       { errorMessage: error.message }
     );
 
@@ -451,7 +451,7 @@ export class AuthenticationErrorHandler {
       logFlipbookOperation(
         'Authentication token refreshed successfully',
         context.flipbookId || 'unknown',
-        'error_handling',
+        'error',
         { success: true }
       );
 
@@ -471,7 +471,7 @@ export class AuthenticationErrorHandler {
     logFlipbookError(
       new Error(`Token refresh failed: ${refreshResult.error}`),
       context.flipbookId || 'unknown',
-      'error_handling',
+      'error',
       'authTokenRefresh'
     );
 
@@ -516,7 +516,7 @@ export class FlipbookErrorHandler {
     logFlipbookOperation(
       'Processing error with comprehensive handler',
       context.flipbookId || 'unknown',
-      'error_handling',
+      'error',
       { errorType: error.name, errorMessage: error.message, operation: context.operation }
     );
 

@@ -325,7 +325,7 @@ export async function retryFlipbookOperation<T>(
       logFlipbookOperation(
         `Retrying in ${delay}ms (attempt ${attempts}/${config.maxRetries})`,
         context.flipbookId || 'unknown',
-        'retrying',
+        'error',
         { attempt: attempts, delay, errorType: classifiedError.type }
       );
 
@@ -360,7 +360,7 @@ export async function manualRetryFlipbookOperation<T>(
   logFlipbookOperation(
     `Manual retry initiated: ${context.operation || 'unknown'}`,
     context.flipbookId || 'unknown',
-    'manual_retry',
+    'error',
     context
   );
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Button } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { FlipbookViewer } from '@/components/FlipbookViewer';
@@ -23,10 +23,17 @@ export default function FlipbookView() {
   // Record view when flipbook loads
   useEffect(() => {
     if (flipbook?.id) {
-      supabase.rpc('record_flipbook_view', {
-        p_flipbook_id: flipbook.id,
-        p_user_agent: navigator.userAgent,
-      }).catch(err => console.warn('Failed to record view:', err));
+      const recordView = async () => {
+        try {
+          await supabase.rpc('record_flipbook_view', {
+            p_flipbook_id: flipbook.id,
+            p_user_agent: navigator.userAgent,
+          });
+        } catch (err) {
+          console.warn('Failed to record view:', err);
+        }
+      };
+      recordView();
     }
   }, [flipbook?.id]);
 
